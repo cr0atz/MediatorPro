@@ -1,0 +1,343 @@
+import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { isUnauthorizedError } from "@/lib/authUtils";
+import type { Case, Party } from "@shared/schema";
+
+interface EmailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  caseId: string | null;
+}
+
+interface EmailRecipient {
+  email: string;
+  name: string;
+  role: string;
+}
+
+export default function EmailModal({ isOpen, onClose, caseId }: EmailModalProps) {
+  const { toast } = useToast();
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  
+  const { data: caseData } = useQuery({
+    queryKey: ["/api/cases", caseId],
+    enabled: !!caseId,
+  });
+
+  const { data: templates = [] } = useQuery({
+    queryKey: ["/api/email/templates"],
+  });
+
+  const sendEmailMutation = useMutation({
+    mutationFn: async (emailData: any) => {
+      return apiRequest('POST', `/api/cases/${caseId}/email`, emailData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Email sent successfully",
+      });
+      onClose();
+      resetForm();
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to send email",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetForm = () => {
+    setSelectedTemplate('');
+    setSelectedRecipients([]);
+    setSubject('');
+    setMessage('');
+  };
+
+  const handleClose = () => {
+    onClose();
+    resetForm();
+  };
+
+  const getEmailRecipients = (): EmailRecipient[] => {
+    if (!caseData || !caseData.parties) return [];
+    
+    const recipients: EmailRecipient[] = [];
+    
+    caseData.parties.forEach((party: Party) => {
+      if (party.primaryContactEmail && party.primaryContactName) {
+        recipients.push({
+          email: party.primaryContactEmail,
+          name: party.primaryContactName,
+          role: `${party.entityName} (${party.partyType})`,
+        });
+      }
+      
+      if (party.legalRepEmail && party.legalRepName) {
+        recipients.push({
+          email: party.legalRepEmail,
+          name: party.legalRepName,
+          role: `${party.legalRepName} - ${party.legalRepFirm || 'Legal Representative'}`,
+        });
+      }
+    });
+    
+    return recipients;
+  };
+
+  const handleTemplateChange = (template: string) => {
+    setSelectedTemplate(template);
+    
+    // Set default subject and message based on template
+    if (template === 'mediation-confirmation') {
+      setSubject(`Mediation Session Confirmation - Case ${caseData?.caseNumber || ''}`);
+      setMessage(`Dear [Recipient Name],
+
+This email confirms your mediation session for Case ${caseData?.caseNumber || ''}:
+
+Date: ${caseData?.mediationDate ? new Date(caseData.mediationDate).toLocaleDateString('en-AU') : 'TBD'}
+Time: ${caseData?.mediationDate ? new Date(caseData.mediationDate).toLocaleTimeString('en-AU') : 'TBD'}
+Type: ${caseData?.mediationType || 'TBD'}
+
+Please ensure you have reviewed all case documents prior to the session.
+
+Best regards,
+${caseData?.mediatorName || 'Mediator'}
+Senior Mediator`);
+    } else if (template === 'document-request') {
+      setSubject(`Document Request - Case ${caseData?.caseNumber || ''}`);
+      setMessage(`Dear [Recipient Name],
+
+We require the following documents for Case ${caseData?.caseNumber || ''}:
+
+- [List documents needed]
+
+Please submit these documents by [deadline date].
+
+Best regards,
+${caseData?.mediatorName || 'Mediator'}
+Senior Mediator`);
+    } else if (template === 'session-reminder') {
+      setSubject(`Mediation Session Reminder - Case ${caseData?.caseNumber || ''}`);
+      setMessage(`Dear [Recipient Name],
+
+This is a reminder of your upcoming mediation session for Case ${caseData?.caseNumber || ''}:
+
+Date: ${caseData?.mediationDate ? new Date(caseData.mediationDate).toLocaleDateString('en-AU') : 'TBD'}
+Time: ${caseData?.mediationDate ? new Date(caseData.mediationDate).toLocaleTimeString('en-AU') : 'TBD'}
+Type: ${caseData?.mediationType || 'TBD'}
+
+Please be punctual and have all relevant documents ready.
+
+Best regards,
+${caseData?.mediatorName || 'Mediator'}
+Senior Mediator`);
+    } else if (template === 'custom') {
+      setSubject('');
+      setMessage('');
+    }
+  };
+
+  const handleRecipientToggle = (email: string) => {
+    setSelectedRecipients(prev => 
+      prev.includes(email) 
+        ? prev.filter(e => e !== email)
+        : [...prev, email]
+    );
+  };
+
+  const handleSendEmail = () => {
+    if (selectedRecipients.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one recipient",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!subject.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter an email subject",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!message.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter an email message",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const recipients = getEmailRecipients().filter(r => selectedRecipients.includes(r.email));
+    const emailData = {
+      template: selectedTemplate || 'custom',
+      recipients: recipients,
+      subject: subject,
+      message: message,
+      templateData: {
+        recipientName: '[Recipient Name]',
+        caseNumber: caseData?.caseNumber,
+        mediatorName: caseData?.mediatorName,
+        mediationDate: caseData?.mediationDate ? new Date(caseData.mediationDate).toLocaleDateString('en-AU') : 'TBD',
+        mediationTime: caseData?.mediationDate ? new Date(caseData.mediationDate).toLocaleTimeString('en-AU') : 'TBD',
+        mediationType: caseData?.mediationType,
+      },
+    };
+
+    sendEmailMutation.mutate(emailData);
+  };
+
+  const availableRecipients = getEmailRecipients();
+  const templateOptions = [
+    { value: 'mediation-confirmation', label: 'Mediation Confirmation' },
+    { value: 'document-request', label: 'Request for Documents' },
+    { value: 'session-reminder', label: 'Session Reminder' },
+    { value: 'custom', label: 'Custom Email' },
+  ];
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center space-x-2">
+            <i className="fas fa-envelope text-primary"></i>
+            <span>Send Email Communication</span>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Email Template Selection */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Email Template
+            </label>
+            <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
+              <SelectTrigger data-testid="select-email-template">
+                <SelectValue placeholder="Select Template" />
+              </SelectTrigger>
+              <SelectContent>
+                {templateOptions.map((template) => (
+                  <SelectItem key={template.value} value={template.value}>
+                    {template.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Recipients */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Recipients
+            </label>
+            <div className="space-y-2 max-h-40 overflow-y-auto border border-border rounded-md p-2">
+              {availableRecipients.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-2">
+                  No recipient information available for this case
+                </p>
+              ) : (
+                availableRecipients.map((recipient) => (
+                  <label
+                    key={recipient.email}
+                    className="flex items-center p-3 border border-border rounded-md cursor-pointer hover:bg-accent transition-colors"
+                    data-testid={`label-recipient-${recipient.email}`}
+                  >
+                    <Checkbox
+                      checked={selectedRecipients.includes(recipient.email)}
+                      onCheckedChange={() => handleRecipientToggle(recipient.email)}
+                      className="mr-3"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-foreground">
+                        {recipient.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {recipient.email} - {recipient.role}
+                      </p>
+                    </div>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Subject */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Subject
+            </label>
+            <Input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Email subject..."
+              data-testid="input-email-subject"
+            />
+          </div>
+
+          {/* Message */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Message
+            </label>
+            <Textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Compose your email..."
+              className="min-h-[200px] resize-none"
+              data-testid="textarea-email-message"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end space-x-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              data-testid="button-cancel-email"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendEmail}
+              disabled={sendEmailMutation.isPending}
+              data-testid="button-send-email"
+            >
+              <i className="fas fa-paper-plane mr-2"></i>
+              {sendEmailMutation.isPending ? 'Sending...' : 'Send Email'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
