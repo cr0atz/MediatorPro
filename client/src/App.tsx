@@ -6,6 +6,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Home from "@/pages/Home";
 import Landing from "@/pages/Landing";
+import Documents from "@/pages/Documents";
+import AIAssistant from "@/pages/AIAssistant";
+import Calendar from "@/pages/Calendar";
+import Communications from "@/pages/Communications";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -20,6 +24,10 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/cases" component={Home} />
           <Route path="/cases/:id" component={Home} />
+          <Route path="/documents" component={Documents} />
+          <Route path="/ai-assistant" component={AIAssistant} />
+          <Route path="/calendar" component={Calendar} />
+          <Route path="/communications" component={Communications} />
         </>
       )}
       <Route component={NotFound} />
