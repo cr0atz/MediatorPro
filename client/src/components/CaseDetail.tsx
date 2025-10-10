@@ -22,27 +22,28 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
-  const { data: caseData, isLoading } = useQuery({
+  const { data: caseData, isLoading, error } = useQuery({
     queryKey: ["/api/cases", caseId],
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
+  });
+
+  if (error) {
+    if (isUnauthorizedError(error)) {
+      toast({
+        title: "Unauthorized",
+        description: "You are logged out. Logging in again...",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 500);
+    } else {
       toast({
         title: "Error",
         description: "Failed to fetch case details",
         variant: "destructive",
       });
-    },
-  });
+    }
+  }
 
   if (isLoading) {
     return (

@@ -66,7 +66,7 @@ Return only valid JSON. If information is not found, omit the field or use null.
       if (isImageType) {
         const base64Document = documentBuffer.toString('base64');
         response = await openai.chat.completions.create({
-          model: "gpt-5",
+          model: "gpt-4-turbo",
           messages: [
             {
               role: "system",
@@ -94,7 +94,7 @@ Return only valid JSON. If information is not found, omit the field or use null.
         const textResult = await parser.getText();
         const textContent = textResult.text;
         response = await openai.chat.completions.create({
-          model: "gpt-5",
+          model: "gpt-4-turbo",
           messages: [
             {
               role: "system",
@@ -111,7 +111,7 @@ Return only valid JSON. If information is not found, omit the field or use null.
       } else {
         const textContent = documentBuffer.toString('utf-8');
         response = await openai.chat.completions.create({
-          model: "gpt-5",
+          model: "gpt-4-turbo",
           messages: [
             {
               role: "system",
@@ -262,7 +262,7 @@ Return only valid JSON. If information is not found, omit the field or use null.
         const base64Document = documentBuffer.toString('base64');
         
         const response = await openai.chat.completions.create({
-          model: "gpt-5",
+          model: "gpt-4-turbo",
           messages: [
             {
               role: "system",
