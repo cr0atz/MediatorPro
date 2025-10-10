@@ -90,7 +90,8 @@ Return only valid JSON. If information is not found, omit the field or use null.
         });
       } else if (isPDF) {
         const { PDFParse } = await import('pdf-parse');
-        const parser = new PDFParse(documentBuffer);
+        const uint8Array = new Uint8Array(documentBuffer);
+        const parser = new PDFParse(uint8Array);
         const textResult = await parser.getText();
         const textContent = textResult.text;
         response = await openai.chat.completions.create({
@@ -255,7 +256,8 @@ Return only valid JSON. If information is not found, omit the field or use null.
       
       if (isPDF) {
         const { PDFParse } = await import('pdf-parse');
-        const parser = new PDFParse(documentBuffer);
+        const uint8Array = new Uint8Array(documentBuffer);
+        const parser = new PDFParse(uint8Array);
         const textResult = await parser.getText();
         return textResult.text;
       } else if (isImageType) {
