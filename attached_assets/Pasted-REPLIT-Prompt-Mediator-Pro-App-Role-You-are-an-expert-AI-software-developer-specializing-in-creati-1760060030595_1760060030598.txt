@@ -1,0 +1,105 @@
+REPLIT Prompt: Mediator Pro App
+Role: You are an expert AI software developer specializing in creating full-stack, AI-powered web applications for the legal technology sector. Your task is to build a sophisticated case management system for mediators called "Mediator Pro App".
+
+Project Goal:
+Create a robust, scalable, and intuitive web application that assists mediators in managing their cases from intake to resolution. The system's core functionality will be to ingest initial case documents, automate administrative tasks like communication and scheduling, and provide AI-powered analysis and summarization tools. The application should be designed for the Australian jurisdiction but maintain international applicability.
+
+Core Features & Functionality:
+
+Automated Case Intake & Data Extraction:
+
+The user must be able to upload an initial case summary document (e.g., a PDF like the Mediation Summary Sheet.pdf provided).
+
+Using an LLM with OCR and entity extraction capabilities, the system must parse the document and automatically populate a new "Case File" with the following key information:
+
+
+Case Identifiers: Case Number , Mediation Number.
+
+
+
+Case Details: Mediator Name , Mediation Date/Time , Mediation Type (e.g., Remote) , Premises/Location of Dispute.
+
+
+
+
+
+Party Information: Differentiate between Applicant/Tenant and Respondent/Landlord. For each party, extract:
+
+
+Entity Name (e.g., Phobia Escape Rooms Pty Ltd).
+
+Primary Contact Person(s) and their Role (e.g., Daniel Gray - Director).
+
+Contact Details (Email and Phone).
+
+Legal Representation (e.g., Kristen Giansalvo, Special Counsel, MinterEllison).
+
+
+Dispute Information: Extract the background/history of the dispute and the list of issues to be discussed (e.g., Compensation).
+
+
+Comprehensive Case Management Dashboard:
+
+A central dashboard displaying a list of all active and closed cases.
+
+Each case should be a self-contained module with tabs for:
+
+Overview: A summary of the key details extracted at intake.
+
+Parties: A detailed contact list for all involved parties and representatives.
+
+Case Notes: A rich-text editor for the mediator to add private, time-stamped notes.
+
+Documents / Evidence: A secure file repository to upload, categorize, and view all case-related documents (e.g., submissions, evidence, correspondence).
+
+Communication & Scheduling Hub:
+
+Email Integration: Connect to an email service (e.g., via SMTP or an API like SendGrid) to allow the mediator to send emails to parties directly from the application. Include templates for common communications (e.g., "Mediation Confirmation," "Request for Documents").
+
+Zoom Integration: Integrate with the Zoom API to schedule mediation sessions. The system should automatically generate a meeting link and send calendar invites to all parties listed in the case file.
+
+AI-Powered Analysis Engine (RAG System):
+
+This is the core intelligent feature. Implement a Retrieval-Augmented Generation (RAG) system using a framework like LiteRAG, LangChain, or LlamaIndex.
+
+Architecture:
+
+Vector Indexing (FAISS): When documents are uploaded to a case, they should be chunked, embedded, and stored in a FAISS vector index specific to that case.
+
+Graph Database (GraphDB): In parallel, extract key entities (people, organizations, dates, issues) and their relationships from the documents. Store this structured data in a graph database (e.g., Neo4j, Kùzu). This will allow for understanding the relationships between different pieces of information.
+
+AI Tools for the Mediator:
+
+Mediator Summaries: Generate concise, neutral summaries of the dispute by querying the RAG system across all case documents.
+
+Document Analysis (Q&A): Provide a chat interface where the mediator can ask natural language questions about the case files (e.g., "What was the landlord's reason for terminating the lease?" or "Summarize the applicant's position on compensation.").
+
+IRAC Analysis: Create a tool that, given a specific legal issue, queries the RAG system to find relevant facts and rules within the provided documents and generates a draft IRAC (Issue, Rule, Application, Conclusion) analysis for the mediator's private use.
+
+Suggested Technical Stack:
+
+Frontend: React or Vue.js (with TypeScript for type safety).
+
+Backend: Python with a modern web framework like FastAPI or Flask.
+
+Database (Structured): PostgreSQL for storing case data, user accounts, and party information.
+
+AI / RAG Framework: LangChain or LlamaIndex.
+
+Vector Store: FAISS.
+
+Graph Database: Neo4j or another suitable graph database.
+
+File Storage: A local volume or a cloud storage solution like AWS S3.
+
+Initial Steps:
+
+Set up the project structure with a Python/FastAPI backend and a React frontend.
+
+Define the database schemas (SQL models) for Case, Party, Document, and CaseNote.
+
+Create the first API endpoint: POST /api/cases/create-from-upload. This endpoint will accept a file upload.
+
+Implement the initial document parsing logic for this endpoint to extract the entities listed in "Core Feature #1" and create the corresponding records in the database.
+
+Build the basic frontend UI for uploading a document and viewing the extracted data on a simple case overview page.
