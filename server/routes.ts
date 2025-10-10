@@ -20,11 +20,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       fileSize: 50 * 1024 * 1024, // 50MB limit
     },
     fileFilter: (req, file, cb) => {
-      // Allow PDF, DOC, DOCX files
+      // Allow PDF, DOC, DOCX, and image files
       const allowedMimes = [
         'application/pdf',
         'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'image/png',
+        'image/jpeg',
+        'image/jpg',
+        'image/webp'
       ];
       cb(null, allowedMimes.includes(file.mimetype));
     }
@@ -123,11 +127,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error('Failed to upload file to storage');
       }
 
-      // Extract case data using AI
-      const extractedData = await aiService.extractCaseDataFromDocument(file.buffer, file.mimetype);
+      // Extract case data using AI (with fallback for errors)
+      let extractedData: any = {};
+      let extractedText = '';
+      
+      try {
+        extractedData = await aiService.extractCaseDataFromDocument(file.buffer, file.mimetype);
+      } catch (error) {
+        console.error("AI extraction failed, using defaults:", error);
+        extractedData = {};
+      }
       
       // Extract text content for future RAG queries
-      const extractedText = await aiService.extractTextFromDocument(file.buffer, file.mimetype);
+      try {
+        extractedText = await aiService.extractTextFromDocument(file.buffer, file.mimetype);
+      } catch (error) {
+        console.error("Text extraction failed:", error);
+        extractedText = '';
+      }
 
       // Create case record
       const caseData = {

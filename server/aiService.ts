@@ -33,8 +33,6 @@ export interface ExtractedCaseData {
 export class AIService {
   async extractCaseDataFromDocument(documentBuffer: Buffer, mimeType: string): Promise<ExtractedCaseData> {
     try {
-      const base64Document = documentBuffer.toString('base64');
-      
       const prompt = `You are an expert legal document analyzer. Extract key case information from this mediation summary document. 
 
 Please extract and return the following information in JSON format:
@@ -60,29 +58,74 @@ Please extract and return the following information in JSON format:
 
 Return only valid JSON. If information is not found, omit the field or use null.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-5",
-        messages: [
-          {
-            role: "system",
-            content: "You are a professional legal document analyzer. Extract case information accurately and return valid JSON."
-          },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${mimeType};base64,${base64Document}`
+      const isImageType = mimeType.startsWith('image/');
+      const isPDF = mimeType === 'application/pdf';
+      
+      let response;
+      
+      if (isImageType) {
+        const base64Document = documentBuffer.toString('base64');
+        response = await openai.chat.completions.create({
+          model: "gpt-5",
+          messages: [
+            {
+              role: "system",
+              content: "You are a professional legal document analyzer. Extract case information accurately and return valid JSON."
+            },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${mimeType};base64,${base64Document}`
+                  }
                 }
-              }
-            ]
-          }
-        ],
-        response_format: { type: "json_object" },
-        max_completion_tokens: 4096,
-      });
+              ]
+            }
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 4096,
+        });
+      } else if (isPDF) {
+        const { PDFParse } = await import('pdf-parse');
+        const parser = new PDFParse(documentBuffer);
+        const textResult = await parser.getText();
+        const textContent = textResult.text;
+        response = await openai.chat.completions.create({
+          model: "gpt-5",
+          messages: [
+            {
+              role: "system",
+              content: "You are a professional legal document analyzer. Extract case information accurately from the document text and return valid JSON."
+            },
+            {
+              role: "user",
+              content: `${prompt}\n\nDocument content:\n${textContent.substring(0, 100000)}`
+            }
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 4096,
+        });
+      } else {
+        const textContent = documentBuffer.toString('utf-8');
+        response = await openai.chat.completions.create({
+          model: "gpt-5",
+          messages: [
+            {
+              role: "system",
+              content: "You are a professional legal document analyzer. Extract case information accurately from the document text and return valid JSON."
+            },
+            {
+              role: "user",
+              content: `${prompt}\n\nDocument content:\n${textContent.substring(0, 100000)}`
+            }
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 4096,
+        });
+      }
 
       const extractedData = JSON.parse(response.choices[0].message.content || "{}");
       return extractedData;
@@ -207,35 +250,47 @@ Return only valid JSON. If information is not found, omit the field or use null.
 
   async extractTextFromDocument(documentBuffer: Buffer, mimeType: string): Promise<string> {
     try {
-      const base64Document = documentBuffer.toString('base64');
+      const isImageType = mimeType.startsWith('image/');
+      const isPDF = mimeType === 'application/pdf';
       
-      const response = await openai.chat.completions.create({
-        model: "gpt-5",
-        messages: [
-          {
-            role: "system",
-            content: "You are a document text extraction expert. Extract all readable text from this document and return it in a clean, organized format."
-          },
-          {
-            role: "user",
-            content: [
-              { 
-                type: "text", 
-                text: "Extract all text content from this document. Return the text in a clear, readable format." 
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${mimeType};base64,${base64Document}`
+      if (isPDF) {
+        const { PDFParse } = await import('pdf-parse');
+        const parser = new PDFParse(documentBuffer);
+        const textResult = await parser.getText();
+        return textResult.text;
+      } else if (isImageType) {
+        const base64Document = documentBuffer.toString('base64');
+        
+        const response = await openai.chat.completions.create({
+          model: "gpt-5",
+          messages: [
+            {
+              role: "system",
+              content: "You are a document text extraction expert. Extract all readable text from this document and return it in a clean, organized format."
+            },
+            {
+              role: "user",
+              content: [
+                { 
+                  type: "text", 
+                  text: "Extract all text content from this document. Return the text in a clear, readable format." 
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${mimeType};base64,${base64Document}`
+                  }
                 }
-              }
-            ]
-          }
-        ],
-        max_completion_tokens: 4096,
-      });
+              ]
+            }
+          ],
+          max_completion_tokens: 4096,
+        });
 
-      return response.choices[0].message.content || "";
+        return response.choices[0].message.content || "";
+      } else {
+        return documentBuffer.toString('utf-8');
+      }
     } catch (error) {
       console.error("Error extracting text from document:", error);
       throw new Error("Failed to extract text from document");
