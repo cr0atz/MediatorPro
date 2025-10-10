@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { storage } from "./storage";
 import type { Document } from "@shared/schema";
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+// Using GPT-4 Turbo model for AI analysis
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || ""
 });
@@ -60,6 +60,8 @@ Return only valid JSON. If information is not found, omit the field or use null.
 
       const isImageType = mimeType.startsWith('image/');
       const isPDF = mimeType === 'application/pdf';
+      const isWord = mimeType === 'application/msword' || mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      const isExcel = mimeType === 'application/vnd.ms-excel' || mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       
       let response;
       
@@ -94,6 +96,52 @@ Return only valid JSON. If information is not found, omit the field or use null.
         const parser = new PDFParse(uint8Array);
         const textResult = await parser.getText();
         const textContent = textResult.text;
+        response = await openai.chat.completions.create({
+          model: "gpt-4-turbo",
+          messages: [
+            {
+              role: "system",
+              content: "You are a professional legal document analyzer. Extract case information accurately from the document text and return valid JSON."
+            },
+            {
+              role: "user",
+              content: `${prompt}\n\nDocument content:\n${textContent.substring(0, 100000)}`
+            }
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 4096,
+        });
+      } else if (isWord) {
+        const mammoth = await import('mammoth');
+        const result = await mammoth.extractRawText({ buffer: documentBuffer });
+        const textContent = result.value;
+        response = await openai.chat.completions.create({
+          model: "gpt-4-turbo",
+          messages: [
+            {
+              role: "system",
+              content: "You are a professional legal document analyzer. Extract case information accurately from the document text and return valid JSON."
+            },
+            {
+              role: "user",
+              content: `${prompt}\n\nDocument content:\n${textContent.substring(0, 100000)}`
+            }
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 4096,
+        });
+      } else if (isExcel) {
+        const XLSX = await import('xlsx');
+        const workbook = XLSX.read(documentBuffer, { type: 'buffer' });
+        let textContent = '';
+        
+        workbook.SheetNames.forEach((sheetName) => {
+          const sheet = workbook.Sheets[sheetName];
+          textContent += `Sheet: ${sheetName}\n`;
+          textContent += XLSX.utils.sheet_to_txt(sheet);
+          textContent += '\n\n';
+        });
+        
         response = await openai.chat.completions.create({
           model: "gpt-4-turbo",
           messages: [
@@ -153,7 +201,7 @@ Return only valid JSON. If information is not found, omit the field or use null.
       });
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4-turbo",
         messages: [
           {
             role: "system",
@@ -191,7 +239,7 @@ Return only valid JSON. If information is not found, omit the field or use null.
       });
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4-turbo",
         messages: [
           {
             role: "system",
@@ -228,7 +276,7 @@ Return only valid JSON. If information is not found, omit the field or use null.
       });
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4-turbo",
         messages: [
           {
             role: "system",
@@ -253,6 +301,8 @@ Return only valid JSON. If information is not found, omit the field or use null.
     try {
       const isImageType = mimeType.startsWith('image/');
       const isPDF = mimeType === 'application/pdf';
+      const isWord = mimeType === 'application/msword' || mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      const isExcel = mimeType === 'application/vnd.ms-excel' || mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       
       if (isPDF) {
         const { PDFParse } = await import('pdf-parse');
@@ -260,6 +310,23 @@ Return only valid JSON. If information is not found, omit the field or use null.
         const parser = new PDFParse(uint8Array);
         const textResult = await parser.getText();
         return textResult.text;
+      } else if (isWord) {
+        const mammoth = await import('mammoth');
+        const result = await mammoth.extractRawText({ buffer: documentBuffer });
+        return result.value;
+      } else if (isExcel) {
+        const XLSX = await import('xlsx');
+        const workbook = XLSX.read(documentBuffer, { type: 'buffer' });
+        let text = '';
+        
+        workbook.SheetNames.forEach((sheetName) => {
+          const sheet = workbook.Sheets[sheetName];
+          text += `Sheet: ${sheetName}\n`;
+          text += XLSX.utils.sheet_to_txt(sheet);
+          text += '\n\n';
+        });
+        
+        return text;
       } else if (isImageType) {
         const base64Document = documentBuffer.toString('base64');
         

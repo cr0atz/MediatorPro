@@ -5,6 +5,7 @@ import {
   documents,
   caseNotes,
   aiAnalyses,
+  emailTemplates,
   type User,
   type UpsertUser,
   type Case,
@@ -12,11 +13,13 @@ import {
   type Document,
   type CaseNote,
   type AiAnalysis,
+  type EmailTemplate,
   type InsertCase,
   type InsertParty,
   type InsertDocument,
   type InsertCaseNote,
   type InsertAiAnalysis,
+  type InsertEmailTemplate,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -32,6 +35,7 @@ export interface IStorage {
   getCaseWithDetails(id: string): Promise<(Case & { parties: Party[], documents: Document[] }) | undefined>;
   createCase(caseData: InsertCase): Promise<Case>;
   updateCase(id: string, caseData: Partial<InsertCase>): Promise<Case>;
+  deleteCase(id: string): Promise<void>;
   
   // Party operations
   createParty(partyData: InsertParty): Promise<Party>;
@@ -50,6 +54,13 @@ export interface IStorage {
   // AI Analysis operations
   createAiAnalysis(analysisData: InsertAiAnalysis): Promise<AiAnalysis>;
   getAiAnalyses(caseId: string): Promise<AiAnalysis[]>;
+  
+  // Email Template operations
+  createEmailTemplate(templateData: InsertEmailTemplate): Promise<EmailTemplate>;
+  getEmailTemplates(userId: string): Promise<EmailTemplate[]>;
+  getEmailTemplate(id: string): Promise<EmailTemplate | undefined>;
+  updateEmailTemplate(id: string, templateData: Partial<InsertEmailTemplate>): Promise<EmailTemplate>;
+  deleteEmailTemplate(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -116,6 +127,10 @@ export class DatabaseStorage implements IStorage {
     return updatedCase;
   }
 
+  async deleteCase(id: string): Promise<void> {
+    await db.delete(cases).where(eq(cases.id, id));
+  }
+
   // Party operations
   async createParty(partyData: InsertParty): Promise<Party> {
     const [party] = await db.insert(parties).values(partyData).returning();
@@ -180,6 +195,38 @@ export class DatabaseStorage implements IStorage {
       .from(aiAnalyses)
       .where(eq(aiAnalyses.caseId, caseId))
       .orderBy(desc(aiAnalyses.createdAt));
+  }
+
+  // Email Template operations
+  async createEmailTemplate(templateData: InsertEmailTemplate): Promise<EmailTemplate> {
+    const [template] = await db.insert(emailTemplates).values(templateData).returning();
+    return template;
+  }
+
+  async getEmailTemplates(userId: string): Promise<EmailTemplate[]> {
+    return await db
+      .select()
+      .from(emailTemplates)
+      .where(eq(emailTemplates.userId, userId))
+      .orderBy(desc(emailTemplates.createdAt));
+  }
+
+  async getEmailTemplate(id: string): Promise<EmailTemplate | undefined> {
+    const [template] = await db.select().from(emailTemplates).where(eq(emailTemplates.id, id));
+    return template;
+  }
+
+  async updateEmailTemplate(id: string, templateData: Partial<InsertEmailTemplate>): Promise<EmailTemplate> {
+    const [updatedTemplate] = await db
+      .update(emailTemplates)
+      .set({ ...templateData, updatedAt: new Date() })
+      .where(eq(emailTemplates.id, id))
+      .returning();
+    return updatedTemplate;
+  }
+
+  async deleteEmailTemplate(id: string): Promise<void> {
+    await db.delete(emailTemplates).where(eq(emailTemplates.id, id));
   }
 }
 

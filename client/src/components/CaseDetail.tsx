@@ -1,15 +1,26 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import AIChat from "./AIChat";
 import DocumentManager from "./DocumentManager";
 import CaseNotes from "./CaseNotes";
 import EmailModal from "./EmailModal";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Case, Party, Document } from "@shared/schema";
 
 interface CaseDetailProps {
@@ -20,7 +31,31 @@ interface CaseDetailProps {
 export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
   const { toast } = useToast();
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+
+  const deleteCaseMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest(`/api/cases/${caseId}`, {
+        method: 'DELETE',
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Case deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
+      onBack();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete case",
+        variant: "destructive",
+      });
+    },
+  });
 
   const { data: caseData, isLoading, error } = useQuery({
     queryKey: ["/api/cases", caseId],
@@ -138,6 +173,15 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
             >
               <i className="fas fa-video mr-2"></i>
               Join Session
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setShowDeleteDialog(true)}
+              className="bg-red-500/20 text-primary-foreground hover:bg-red-500/30"
+              data-testid="button-delete-case"
+            >
+              <i className="fas fa-trash mr-2"></i>
+              Delete
             </Button>
           </div>
         </div>
@@ -521,6 +565,29 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
           caseId={caseId}
         />
       )}
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Case</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this case? This action cannot be undone.
+              All associated documents, parties, and notes will also be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteCaseMutation.mutate()}
+              disabled={deleteCaseMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteCaseMutation.isPending ? "Deleting..." : "Delete Case"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

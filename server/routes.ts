@@ -7,7 +7,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { aiService } from "./aiService";
 import { emailService } from "./emailService";
-import { insertCaseSchema, insertPartySchema, insertDocumentSchema, insertCaseNoteSchema, insertAiAnalysisSchema } from "@shared/schema";
+import { insertCaseSchema, insertPartySchema, insertDocumentSchema, insertCaseNoteSchema, insertAiAnalysisSchema, insertEmailTemplateSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -20,11 +20,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       fileSize: 50 * 1024 * 1024, // 50MB limit
     },
     fileFilter: (req, file, cb) => {
-      // Allow PDF, DOC, DOCX, and image files
+      // Allow PDF, DOC, DOCX, Excel, and image files
       const allowedMimes = [
         'application/pdf',
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'image/png',
         'image/jpeg',
         'image/jpg',
@@ -218,6 +220,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/cases/:id', isAuthenticated, async (req, res) => {
+    try {
+      const caseId = req.params.id;
+      const caseData = await storage.getCase(caseId);
+      
+      if (!caseData) {
+        return res.status(404).json({ message: "Case not found" });
+      }
+      
+      await storage.deleteCase(caseId);
+      res.json({ message: "Case deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting case:", error);
+      res.status(500).json({ message: "Failed to delete case" });
+    }
+  });
+
   // Document routes
   app.get('/api/cases/:id/documents', isAuthenticated, async (req, res) => {
     try {
@@ -285,6 +304,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error uploading document:", error);
       res.status(500).json({ message: "Failed to upload document" });
+    }
+  });
+
+  app.post('/api/cases/:id/documents/process-upload', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { uploadURL, fileName, fileSize, mimeType, category } = req.body;
+
+      if (!uploadURL) {
+        return res.status(400).json({ message: "Upload URL is required" });
+      }
+
+      // Set ACL policy for the uploaded file
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(uploadURL, {
+        owner: userId,
+        visibility: "private",
+      });
+
+      // Create document record
+      // Note: Text extraction is skipped for ObjectUploader uploads since the file
+      // is directly uploaded to storage and the presigned URL is PUT-only.
+      // Text extraction can be added later via a separate processing endpoint if needed.
+      const documentData = {
+        caseId: req.params.id,
+        fileName: fileName || `document_${Date.now()}`,
+        originalName: fileName,
+        fileSize: fileSize || 0,
+        mimeType: mimeType || 'application/octet-stream',
+        category: category || 'General',
+        objectPath: objectPath,
+        extractedText: '', // Will be empty for direct uploads
+        isProcessed: false, // Mark as not processed since text extraction is skipped
+        uploadedBy: userId,
+      };
+
+      const validatedDocumentData = insertDocumentSchema.parse(documentData);
+      const document = await storage.createDocument(validatedDocumentData);
+
+      res.json(document);
+    } catch (error) {
+      console.error("Error processing uploaded document:", error);
+      res.status(500).json({ message: "Failed to process uploaded document" });
     }
   });
 
@@ -434,13 +496,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/email/templates', async (req, res) => {
+  // Email template management routes
+  app.get('/api/email/templates', isAuthenticated, async (req: any, res) => {
     try {
-      const templates = emailService.getAvailableTemplates();
+      const userId = req.user.claims.sub;
+      const templates = await storage.getEmailTemplates(userId);
       res.json(templates);
     } catch (error) {
       console.error("Error fetching email templates:", error);
       res.status(500).json({ message: "Failed to fetch email templates" });
+    }
+  });
+
+  app.post('/api/email/templates', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const templateData = {
+        ...req.body,
+        userId,
+      };
+      const validatedData = insertEmailTemplateSchema.parse(templateData);
+      const template = await storage.createEmailTemplate(validatedData);
+      res.json(template);
+    } catch (error) {
+      console.error("Error creating email template:", error);
+      res.status(500).json({ message: "Failed to create email template" });
+    }
+  });
+
+  app.put('/api/email/templates/:id', isAuthenticated, async (req, res) => {
+    try {
+      const template = await storage.updateEmailTemplate(req.params.id, req.body);
+      res.json(template);
+    } catch (error) {
+      console.error("Error updating email template:", error);
+      res.status(500).json({ message: "Failed to update email template" });
+    }
+  });
+
+  app.delete('/api/email/templates/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteEmailTemplate(req.params.id);
+      res.json({ message: "Template deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting email template:", error);
+      res.status(500).json({ message: "Failed to delete email template" });
     }
   });
 
