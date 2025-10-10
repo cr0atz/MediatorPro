@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ObjectUploader } from "./ObjectUploader";
+import { ObjectUploader } from "@/components/ObjectUploader";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import type { Document } from "@shared/schema";
@@ -21,26 +21,8 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
 
-  const { data: documents = [], isLoading } = useQuery({
+  const { data: documents = [], isLoading } = useQuery<Document[]>({
     queryKey: ["/api/cases", caseId, "documents"],
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: "Error",
-        description: "Failed to fetch documents",
-        variant: "destructive",
-      });
-    },
   });
 
   const handleGetUploadParameters = async () => {
@@ -59,9 +41,9 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
 
   const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
     try {
-      if (result.successful.length > 0) {
+      if (result.successful && result.successful.length > 0) {
         const uploadedFile = result.successful[0];
-        const uploadURL = uploadedFile.uploadURL;
+        const uploadURL = uploadedFile.uploadURL || '';
         
         // Call the backend to process the uploaded document
         const formData = new FormData();
@@ -133,8 +115,10 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-AU', {
+  const formatDate = (dateString: string | Date | null) => {
+    if (!dateString) return 'Unknown';
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+    return date.toLocaleDateString('en-AU', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
