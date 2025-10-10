@@ -103,6 +103,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/cases', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { caseNumber, mediationDate, disputeBackground, issuesForDiscussion } = req.body;
+
+      if (!caseNumber) {
+        return res.status(400).json({ message: "Case number is required" });
+      }
+
+      const caseData = {
+        caseNumber,
+        mediationDate: mediationDate ? new Date(mediationDate) : null,
+        disputeBackground: disputeBackground || '',
+        issuesForDiscussion: issuesForDiscussion || [],
+        mediatorId: userId,
+        status: 'open',
+      };
+
+      const validatedCaseData = insertCaseSchema.parse(caseData);
+      const newCase = await storage.createCase(validatedCaseData);
+
+      res.status(201).json(newCase);
+    } catch (error) {
+      console.error("Error creating case:", error);
+      res.status(500).json({ message: "Failed to create case" });
+    }
+  });
+
   app.post('/api/cases/create-from-upload', isAuthenticated, upload.single('document'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

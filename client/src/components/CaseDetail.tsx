@@ -36,9 +36,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
 
   const deleteCaseMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest(`/api/cases/${caseId}`, {
-        method: 'DELETE',
-      });
+      return await apiRequest('DELETE', `/api/cases/${caseId}`);
     },
     onSuccess: () => {
       toast({
