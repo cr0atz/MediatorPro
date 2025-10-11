@@ -192,6 +192,30 @@ Return only valid JSON. If information is not found, omit the field or use null.
       const documents = await storage.getDocumentsByCase(caseId);
       const processedDocs = documents.filter(doc => doc.isProcessed && doc.extractedText);
 
+      // If no documents are available, generate summary based on case info only
+      if (processedDocs.length === 0) {
+        let context = `Case: ${caseData.caseNumber}\n`;
+        context += `Background: ${caseData.disputeBackground || "Not provided"}\n`;
+        context += `Issues: ${caseData.issuesForDiscussion?.join(", ") || "Not specified"}\n`;
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4-turbo",
+          messages: [
+            {
+              role: "system",
+              content: "You are a professional mediator. Generate a brief, neutral case summary based on the provided basic case information. Keep it concise and note that no documents have been uploaded yet."
+            },
+            {
+              role: "user",
+              content: `Please generate a brief case summary:\n\n${context}\n\nNote: No documents have been uploaded to this case yet.`
+            }
+          ],
+          max_completion_tokens: 500,
+        });
+
+        return response.choices[0].message.content || "Unable to generate summary - no case information available.";
+      }
+
       let context = `Case: ${caseData.caseNumber}\n`;
       context += `Background: ${caseData.disputeBackground}\n`;
       context += `Issues: ${caseData.issuesForDiscussion?.join(", ")}\n\n`;
@@ -267,6 +291,29 @@ Return only valid JSON. If information is not found, omit the field or use null.
 
       const documents = await storage.getDocumentsByCase(caseId);
       const processedDocs = documents.filter(doc => doc.isProcessed && doc.extractedText);
+
+      // If no documents are available, generate analysis based on case info only
+      if (processedDocs.length === 0) {
+        let context = `Case: ${caseData.caseNumber}\n`;
+        context += `Background: ${caseData.disputeBackground || "Not provided"}\n`;
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4-turbo",
+          messages: [
+            {
+              role: "system",
+              content: "You are a legal analysis expert. Generate an IRAC analysis (Issue, Rule, Application, Conclusion) for the specified legal issue based on the available case information. Note if limited information is available. Format it clearly with headings."
+            },
+            {
+              role: "user",
+              content: `Case Information:\n${context}\n\nNote: No documents have been uploaded yet.\n\nGenerate an IRAC analysis for this legal issue: ${legalIssue}`
+            }
+          ],
+          max_completion_tokens: 2048,
+        });
+
+        return response.choices[0].message.content || "Unable to generate IRAC analysis - insufficient information available.";
+      }
 
       let context = `Case: ${caseData.caseNumber}\n`;
       context += `Background: ${caseData.disputeBackground}\n`;

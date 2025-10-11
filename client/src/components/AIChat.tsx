@@ -42,8 +42,8 @@ export default function AIChat({ caseId }: AIChatProps) {
     mutationFn: async (question: string) => {
       return apiRequest('POST', `/api/cases/${caseId}/ai/question`, { question });
     },
-    onSuccess: (response) => {
-      const data = response.json();
+    onSuccess: async (response) => {
+      const data = await response.json();
       const newMessage: ChatMessage = {
         id: Date.now().toString(),
         type: 'ai',
@@ -77,8 +77,8 @@ export default function AIChat({ caseId }: AIChatProps) {
     mutationFn: async () => {
       return apiRequest('POST', `/api/cases/${caseId}/ai/summary`, {});
     },
-    onSuccess: (response) => {
-      const data = response.json();
+    onSuccess: async (response) => {
+      const data = await response.json();
       const newMessage: ChatMessage = {
         id: Date.now().toString(),
         type: 'ai',
@@ -115,8 +115,8 @@ export default function AIChat({ caseId }: AIChatProps) {
     mutationFn: async (legalIssue: string) => {
       return apiRequest('POST', `/api/cases/${caseId}/ai/irac`, { legalIssue });
     },
-    onSuccess: (response) => {
-      const data = response.json();
+    onSuccess: async (response) => {
+      const data = await response.json();
       const newMessage: ChatMessage = {
         id: Date.now().toString(),
         type: 'ai',
