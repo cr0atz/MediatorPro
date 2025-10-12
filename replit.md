@@ -10,7 +10,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-**October 12, 2025**
+**October 12, 2025 - Session 2**
+- Fixed party display bug: Changed from `.find()` to `.filter()` to display ALL parties (not just first one)
+  - Multiple applicants and respondents now show as separate cards
+  - Tested with 3 respondents + 1 applicant successfully
+- Implemented comprehensive document viewer system with modal interface:
+  - PDF viewer: Direct display using iframe
+  - DOCX viewer: Converts to HTML using mammoth.js library
+  - XLSX viewer: Renders as HTML tables using xlsx library
+  - Unsupported file fallback: Helpful messages for legacy .doc and .xls files
+  - Download button available in all viewer modes
+  - Custom styling for Word and Excel documents with proper theming
+- All features tested end-to-end and architect-approved
+
+**October 12, 2025 - Session 1**
 - Added "Send to Case Notes" button in AI Analysis - saves AI responses to case notes with one click
 - Added "Re-Parse" button for documents - reruns AI extraction when OCR misses details (e.g., landlord contact information)
 - Added manual "Add Party" dialog with complete form - handles parties missed by AI extraction
