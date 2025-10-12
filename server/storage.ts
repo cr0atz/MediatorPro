@@ -6,6 +6,7 @@ import {
   caseNotes,
   aiAnalyses,
   emailTemplates,
+  smtpSettings,
   type User,
   type UpsertUser,
   type Case,
@@ -14,12 +15,14 @@ import {
   type CaseNote,
   type AiAnalysis,
   type EmailTemplate,
+  type SmtpSettings,
   type InsertCase,
   type InsertParty,
   type InsertDocument,
   type InsertCaseNote,
   type InsertAiAnalysis,
   type InsertEmailTemplate,
+  type InsertSmtpSettings,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -61,6 +64,11 @@ export interface IStorage {
   getEmailTemplate(id: string): Promise<EmailTemplate | undefined>;
   updateEmailTemplate(id: string, templateData: Partial<InsertEmailTemplate>): Promise<EmailTemplate>;
   deleteEmailTemplate(id: string): Promise<void>;
+  
+  // SMTP Settings operations
+  getSmtpSettings(userId: string): Promise<SmtpSettings | undefined>;
+  createSmtpSettings(settingsData: InsertSmtpSettings): Promise<SmtpSettings>;
+  updateSmtpSettings(userId: string, settingsData: Partial<InsertSmtpSettings>): Promise<SmtpSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -227,6 +235,29 @@ export class DatabaseStorage implements IStorage {
 
   async deleteEmailTemplate(id: string): Promise<void> {
     await db.delete(emailTemplates).where(eq(emailTemplates.id, id));
+  }
+
+  // SMTP Settings operations
+  async getSmtpSettings(userId: string): Promise<SmtpSettings | undefined> {
+    const [settings] = await db
+      .select()
+      .from(smtpSettings)
+      .where(eq(smtpSettings.userId, userId));
+    return settings;
+  }
+
+  async createSmtpSettings(settingsData: InsertSmtpSettings): Promise<SmtpSettings> {
+    const [settings] = await db.insert(smtpSettings).values(settingsData).returning();
+    return settings;
+  }
+
+  async updateSmtpSettings(userId: string, settingsData: Partial<InsertSmtpSettings>): Promise<SmtpSettings> {
+    const [updatedSettings] = await db
+      .update(smtpSettings)
+      .set({ ...settingsData, updatedAt: new Date() })
+      .where(eq(smtpSettings.userId, userId))
+      .returning();
+    return updatedSettings;
   }
 }
 

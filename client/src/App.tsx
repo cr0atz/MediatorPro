@@ -10,6 +10,7 @@ import Documents from "@/pages/Documents";
 import AIAssistant from "@/pages/AIAssistant";
 import Calendar from "@/pages/Calendar";
 import Communications from "@/pages/Communications";
+import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -28,6 +29,7 @@ function Router() {
           <Route path="/ai-assistant" component={AIAssistant} />
           <Route path="/calendar" component={Calendar} />
           <Route path="/communications" component={Communications} />
+          <Route path="/settings" component={Settings} />
         </>
       )}
       <Route component={NotFound} />

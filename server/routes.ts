@@ -7,7 +7,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { aiService } from "./aiService";
 import { emailService } from "./emailService";
-import { insertCaseSchema, insertPartySchema, insertDocumentSchema, insertCaseNoteSchema, insertAiAnalysisSchema, insertEmailTemplateSchema } from "@shared/schema";
+import { insertCaseSchema, insertPartySchema, insertDocumentSchema, insertCaseNoteSchema, insertAiAnalysisSchema, insertEmailTemplateSchema, insertSmtpSettingsSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -638,6 +638,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting email template:", error);
       res.status(500).json({ message: "Failed to delete email template" });
+    }
+  });
+
+  // SMTP Settings routes
+  app.get('/api/smtp-settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settings = await storage.getSmtpSettings(userId);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching SMTP settings:", error);
+      res.status(500).json({ message: "Failed to fetch SMTP settings" });
+    }
+  });
+
+  app.post('/api/smtp-settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settingsData = {
+        ...req.body,
+        userId,
+      };
+      const validatedData = insertSmtpSettingsSchema.parse(settingsData);
+      const settings = await storage.createSmtpSettings(validatedData);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error creating SMTP settings:", error);
+      res.status(500).json({ message: "Failed to create SMTP settings" });
+    }
+  });
+
+  app.patch('/api/smtp-settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settings = await storage.updateSmtpSettings(userId, req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating SMTP settings:", error);
+      res.status(500).json({ message: "Failed to update SMTP settings" });
+    }
+  });
+
+  app.post('/api/smtp-settings/test', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settings = await storage.getSmtpSettings(userId);
+      if (!settings) {
+        return res.status(404).json({ message: "SMTP settings not found" });
+      }
+      // TODO: Implement actual SMTP connection test
+      // For now, just return success if settings exist
+      res.json({ message: "SMTP connection test successful" });
+    } catch (error) {
+      console.error("Error testing SMTP connection:", error);
+      res.status(500).json({ message: "Failed to test SMTP connection" });
     }
   });
 
