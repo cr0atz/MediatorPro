@@ -25,6 +25,43 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
     queryKey: ["/api/cases", caseId, "documents"],
   });
 
+  const reparseMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      const response = await apiRequest('POST', `/api/documents/${documentId}/reparse`, {});
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to re-parse document');
+      }
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId, "documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId] });
+      toast({
+        title: "Success",
+        description: "Document re-parsed successfully",
+      });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to re-parse document",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleGetUploadParameters = async () => {
     try {
       const response = await apiRequest('POST', '/api/objects/upload', {});
@@ -233,6 +270,16 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
                     {document.category || 'General'}
                   </Badge>
                   <div className="flex items-center space-x-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => reparseMutation.mutate(document.id)}
+                      disabled={reparseMutation.isPending}
+                      title="Re-Parse Document"
+                      data-testid={`button-reparse-${document.id}`}
+                    >
+                      <i className="fas fa-sync-alt"></i>
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"

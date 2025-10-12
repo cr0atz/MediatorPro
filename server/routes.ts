@@ -394,6 +394,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/documents/:documentId/reparse', isAuthenticated, async (req: any, res) => {
+    try {
+      const { documentId } = req.params;
+      
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      let extractedText = '';
+      let isProcessed = false;
+      
+      try {
+        const objectStorageService = new ObjectStorageService();
+        const objectFile = await objectStorageService.getObjectEntityFile(document.objectPath);
+        const [fileBuffer] = await objectFile.download();
+        extractedText = await aiService.extractTextFromDocument(fileBuffer, document.mimeType);
+        isProcessed = true;
+      } catch (extractError) {
+        console.error("Error re-parsing document:", extractError);
+        return res.status(500).json({ message: "Failed to extract text from document" });
+      }
+
+      const updatedDocument = await storage.updateDocument(documentId, {
+        extractedText,
+        isProcessed,
+      });
+
+      res.json(updatedDocument);
+    } catch (error) {
+      console.error("Error re-parsing document:", error);
+      res.status(500).json({ message: "Failed to re-parse document" });
+    }
+  });
+
   // Case notes routes
   app.get('/api/cases/:id/notes', isAuthenticated, async (req, res) => {
     try {
