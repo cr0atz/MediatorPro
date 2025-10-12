@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 interface AIChatProps {
@@ -150,6 +150,37 @@ export default function AIChat({ caseId }: AIChatProps) {
     },
   });
 
+  const saveToNotesMutation = useMutation({
+    mutationFn: async (content: string) => {
+      return apiRequest('POST', `/api/cases/${caseId}/notes`, { content });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId, "notes"] });
+      toast({
+        title: "Success",
+        description: "Saved to case notes successfully",
+      });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to save to case notes",
+        variant: "destructive",
+      });
+    },
+  });
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -240,16 +271,24 @@ export default function AIChat({ caseId }: AIChatProps) {
                       <div className="text-sm text-foreground whitespace-pre-wrap">
                         {message.content}
                       </div>
-                      {message.sources && message.sources.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+                      <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+                        {message.sources && message.sources.length > 0 && (
                           <p className="text-xs text-muted-foreground">
                             Sources: {message.sources.join(', ')}
                           </p>
-                          <Button variant="link" size="sm" className="text-xs p-0 h-auto">
-                            View Sources
-                          </Button>
-                        </div>
-                      )}
+                        )}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => saveToNotesMutation.mutate(message.content)}
+                          disabled={saveToNotesMutation.isPending}
+                          className="ml-auto"
+                          data-testid={`button-save-to-notes-${message.id}`}
+                        >
+                          <i className="fas fa-save mr-2"></i>
+                          {saveToNotesMutation.isPending ? 'Saving...' : 'Send to Case Notes'}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ) : (
