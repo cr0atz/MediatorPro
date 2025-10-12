@@ -33,6 +33,10 @@ import EmailModal from "./EmailModal";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Case, Party, Document } from "@shared/schema";
+import { 
+  AlertTriangle, ArrowLeft, Mail, Video, Trash2, Info, Users, Folder, 
+  StickyNote, Bot, Circle, Download, FileText, Plus, Phone
+} from "lucide-react";
 
 interface CaseDetailProps {
   caseId: string;
@@ -163,7 +167,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <i className="fas fa-exclamation-triangle text-destructive text-4xl mb-4"></i>
+          <AlertTriangle className="text-destructive w-16 h-16 mb-4" />
           <h2 className="text-xl font-semibold text-foreground mb-2">Case not found</h2>
           <Button onClick={onBack}>Back to Dashboard</Button>
         </div>
@@ -214,7 +218,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                 className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-white/20"
                 data-testid="button-back"
               >
-                <i className="fas fa-arrow-left"></i>
+                <ArrowLeft className="w-5 h-5" />
               </Button>
               <h2 className="text-2xl font-bold" data-testid="text-case-number">
                 {case_.caseNumber}
@@ -234,7 +238,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
               className="bg-white/20 text-primary-foreground hover:bg-white/30"
               data-testid="button-send-email"
             >
-              <i className="fas fa-envelope mr-2"></i>
+              <Mail className="w-4 h-4 mr-2" />
               Send Email
             </Button>
             <Button
@@ -242,7 +246,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
               className="bg-white text-primary hover:bg-white/90"
               data-testid="button-join-session"
             >
-              <i className="fas fa-video mr-2"></i>
+              <Video className="w-4 h-4 mr-2" />
               Join Session
             </Button>
             <Button
@@ -251,7 +255,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
               className="bg-red-500/20 text-primary-foreground hover:bg-red-500/30"
               data-testid="button-delete-case"
             >
-              <i className="fas fa-trash mr-2"></i>
+              <Trash2 className="w-4 h-4 mr-2" />
               Delete
             </Button>
           </div>
@@ -268,7 +272,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                 className="flex items-center space-x-2"
                 data-testid="tab-overview"
               >
-                <i className="fas fa-info-circle"></i>
+                <Info className="w-4 h-4" />
                 <span>Overview</span>
               </TabsTrigger>
               <TabsTrigger
@@ -276,7 +280,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                 className="flex items-center space-x-2"
                 data-testid="tab-parties"
               >
-                <i className="fas fa-users"></i>
+                <Users className="w-4 h-4" />
                 <span>Parties</span>
               </TabsTrigger>
               <TabsTrigger
@@ -284,7 +288,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                 className="flex items-center space-x-2"
                 data-testid="tab-documents"
               >
-                <i className="fas fa-folder"></i>
+                <Folder className="w-4 h-4" />
                 <span>Documents</span>
               </TabsTrigger>
               <TabsTrigger
@@ -292,7 +296,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                 className="flex items-center space-x-2"
                 data-testid="tab-notes"
               >
-                <i className="fas fa-sticky-note"></i>
+                <StickyNote className="w-4 h-4" />
                 <span>Case Notes</span>
               </TabsTrigger>
               <TabsTrigger
@@ -300,7 +304,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                 className="flex items-center space-x-2"
                 data-testid="tab-ai"
               >
-                <i className="fas fa-robot"></i>
+                <Bot className="w-4 h-4" />
                 <span>AI Analysis</span>
               </TabsTrigger>
             </TabsList>
@@ -362,7 +366,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                     <ul className="space-y-2" data-testid="list-issues">
                       {case_.issuesForDiscussion.map((issue, index) => (
                         <li key={index} className="flex items-start space-x-3">
-                          <i className="fas fa-circle text-primary text-xs mt-1"></i>
+                          <Circle className="text-primary w-2 h-2 mt-1" />
                           <span className="text-sm text-foreground">{issue}</span>
                         </li>
                       ))}
@@ -379,7 +383,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                   <h3 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h3>
                   <div className="space-y-2">
                     <Button className="w-full justify-center" data-testid="button-start-zoom">
-                      <i className="fas fa-video mr-2"></i>
+                      <Video className="w-4 h-4 mr-2" />
                       Start Zoom Session
                     </Button>
                     <Button
@@ -388,7 +392,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                       onClick={() => setShowEmailModal(true)}
                       data-testid="button-send-communication"
                     >
-                      <i className="fas fa-envelope mr-2"></i>
+                      <Mail className="w-4 h-4 mr-2" />
                       Send Communication
                     </Button>
                     <Button
@@ -396,7 +400,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                       className="w-full justify-center"
                       data-testid="button-export-summary"
                     >
-                      <i className="fas fa-file-download mr-2"></i>
+                      <Download className="w-4 h-4 mr-2" />
                       Export Case Summary
                     </Button>
                   </div>
@@ -437,7 +441,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                       case_.documents.slice(0, 3).map((doc) => (
                         <div key={doc.id} className="flex items-center justify-between p-2 rounded-md hover:bg-accent transition-colors">
                           <div className="flex items-center space-x-3">
-                            <i className="fas fa-file-pdf text-red-500"></i>
+                            <FileText className="text-red-500 w-5 h-5" />
                             <div>
                               <p className="text-sm font-medium text-foreground truncate max-w-32">
                                 {doc.originalName}
@@ -448,7 +452,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                             </div>
                           </div>
                           <Button size="sm" variant="ghost">
-                            <i className="fas fa-download"></i>
+                            <Download className="w-4 h-4" />
                           </Button>
                         </div>
                       ))
@@ -465,159 +469,171 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-semibold text-foreground">Case Parties</h2>
             <Button onClick={() => setShowAddPartyDialog(true)} data-testid="button-add-party">
-              <i className="fas fa-plus mr-2"></i>
+              <Plus className="w-4 h-4 mr-2" />
               Add Party
             </Button>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Applicants */}
-            {applicants.map((applicant, index) => (
-              <Card key={applicant.id || index}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-foreground">Applicant</h3>
-                    <Badge variant="outline" className="text-xs">Primary Party</Badge>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Entity Name</p>
-                      <p className="text-sm font-semibold text-foreground" data-testid={`text-applicant-name-${applicant.id}`}>
-                        {applicant.entityName}
-                      </p>
-                    </div>
-                    {applicant.primaryContactName && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Primary Contact</p>
-                        <div className="bg-card rounded-md p-3 border border-border">
-                          <p className="text-sm font-medium text-foreground">{applicant.primaryContactName}</p>
-                          {applicant.primaryContactRole && (
-                            <p className="text-xs text-muted-foreground">{applicant.primaryContactRole}</p>
-                          )}
-                          <div className="mt-2 space-y-1">
-                            {applicant.primaryContactEmail && (
-                              <p className="text-xs text-foreground flex items-center">
-                                <i className="fas fa-envelope text-muted-foreground mr-2 w-4"></i>
-                                {applicant.primaryContactEmail}
-                              </p>
-                            )}
-                            {applicant.primaryContactPhone && (
-                              <p className="text-xs text-foreground flex items-center">
-                                <i className="fas fa-phone text-muted-foreground mr-2 w-4"></i>
-                                {applicant.primaryContactPhone}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {applicant.legalRepName && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Legal Representative</p>
-                        <div className="bg-card rounded-md p-3 border border-border">
-                          <p className="text-sm font-medium text-foreground">{applicant.legalRepName}</p>
-                          {applicant.legalRepFirm && (
-                            <p className="text-xs text-muted-foreground">{applicant.legalRepFirm}</p>
-                          )}
-                          <div className="mt-2 space-y-1">
-                            {applicant.legalRepEmail && (
-                              <p className="text-xs text-foreground flex items-center">
-                                <i className="fas fa-envelope text-muted-foreground mr-2 w-4"></i>
-                                {applicant.legalRepEmail}
-                              </p>
-                            )}
-                            {applicant.legalRepPhone && (
-                              <p className="text-xs text-foreground flex items-center">
-                                <i className="fas fa-phone text-muted-foreground mr-2 w-4"></i>
-                                {applicant.legalRepPhone}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-            {/* Respondents */}
-            {respondents.map((respondent, index) => (
-              <Card key={respondent.id || index}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-foreground">Respondent</h3>
-                    <Badge variant="outline" className="text-xs">Opposing Party</Badge>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Entity Name</p>
-                      <p className="text-sm font-semibold text-foreground" data-testid={`text-respondent-name-${respondent.id}`}>
-                        {respondent.entityName}
-                      </p>
-                    </div>
-                    {respondent.primaryContactName && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Primary Contact</p>
-                        <div className="bg-card rounded-md p-3 border border-border">
-                          <p className="text-sm font-medium text-foreground">{respondent.primaryContactName}</p>
-                          {respondent.primaryContactRole && (
-                            <p className="text-xs text-muted-foreground">{respondent.primaryContactRole}</p>
-                          )}
-                          <div className="mt-2 space-y-1">
-                            {respondent.primaryContactEmail && (
-                              <p className="text-xs text-foreground flex items-center">
-                                <i className="fas fa-envelope text-muted-foreground mr-2 w-4"></i>
-                                {respondent.primaryContactEmail}
-                              </p>
-                            )}
-                            {respondent.primaryContactPhone && (
-                              <p className="text-xs text-foreground flex items-center">
-                                <i className="fas fa-phone text-muted-foreground mr-2 w-4"></i>
-                                {respondent.primaryContactPhone}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {respondent.legalRepName && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Legal Representative</p>
-                        <div className="bg-card rounded-md p-3 border border-border">
-                          <p className="text-sm font-medium text-foreground">{respondent.legalRepName}</p>
-                          {respondent.legalRepFirm && (
-                            <p className="text-xs text-muted-foreground">{respondent.legalRepFirm}</p>
-                          )}
-                          <div className="mt-2 space-y-1">
-                            {respondent.legalRepEmail && (
-                              <p className="text-xs text-foreground flex items-center">
-                                <i className="fas fa-envelope text-muted-foreground mr-2 w-4"></i>
-                                {respondent.legalRepEmail}
-                              </p>
-                            )}
-                            {respondent.legalRepPhone && (
-                              <p className="text-xs text-foreground flex items-center">
-                                <i className="fas fa-phone text-muted-foreground mr-2 w-4"></i>
-                                {respondent.legalRepPhone}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-            {applicants.length === 0 && respondents.length === 0 && (
-              <div className="col-span-2 text-center p-8">
-                <i className="fas fa-users text-muted-foreground text-4xl mb-4"></i>
-                <p className="text-foreground font-medium">No party information</p>
-                <p className="text-muted-foreground text-sm">Party details will appear here once extracted from documents</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Applicants Column - LEFT */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-foreground">Applicant</h3>
+                <Badge variant="outline" className="text-xs">Primary Party</Badge>
               </div>
-            )}
+              {applicants.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No applicants added</p>
+              ) : (
+                applicants.map((applicant, index) => (
+                  <Card key={applicant.id || index}>
+                    <CardContent className="p-6">
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Entity Name</p>
+                          <p className="text-sm font-semibold text-foreground" data-testid={`text-applicant-name-${applicant.id}`}>
+                            {applicant.entityName}
+                          </p>
+                        </div>
+                        {applicant.primaryContactName && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Primary Contact</p>
+                            <div className="bg-card rounded-md p-3 border border-border">
+                              <p className="text-sm font-medium text-foreground">{applicant.primaryContactName}</p>
+                              {applicant.primaryContactRole && (
+                                <p className="text-xs text-muted-foreground">{applicant.primaryContactRole}</p>
+                              )}
+                              <div className="mt-2 space-y-1">
+                                {applicant.primaryContactEmail && (
+                                  <p className="text-xs text-foreground flex items-center">
+                                    <Mail className="text-muted-foreground mr-2 w-4 h-4" />
+                                    {applicant.primaryContactEmail}
+                                  </p>
+                                )}
+                                {applicant.primaryContactPhone && (
+                                  <p className="text-xs text-foreground flex items-center">
+                                    <Phone className="text-muted-foreground mr-2 w-4 h-4" />
+                                    {applicant.primaryContactPhone}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {applicant.legalRepName && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Legal Representative</p>
+                            <div className="bg-card rounded-md p-3 border border-border">
+                              <p className="text-sm font-medium text-foreground">{applicant.legalRepName}</p>
+                              {applicant.legalRepFirm && (
+                                <p className="text-xs text-muted-foreground">{applicant.legalRepFirm}</p>
+                              )}
+                              <div className="mt-2 space-y-1">
+                                {applicant.legalRepEmail && (
+                                  <p className="text-xs text-foreground flex items-center">
+                                    <Mail className="text-muted-foreground mr-2 w-4 h-4" />
+                                    {applicant.legalRepEmail}
+                                  </p>
+                                )}
+                                {applicant.legalRepPhone && (
+                                  <p className="text-xs text-foreground flex items-center">
+                                    <Phone className="text-muted-foreground mr-2 w-4 h-4" />
+                                    {applicant.legalRepPhone}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+
+            {/* Respondents Column - RIGHT */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-foreground">Respondent</h3>
+                <Badge variant="outline" className="text-xs">Opposing Party</Badge>
+              </div>
+              {respondents.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No respondents added</p>
+              ) : (
+                respondents.map((respondent, index) => (
+                  <Card key={respondent.id || index}>
+                    <CardContent className="p-6">
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Entity Name</p>
+                          <p className="text-sm font-semibold text-foreground" data-testid={`text-respondent-name-${respondent.id}`}>
+                            {respondent.entityName}
+                          </p>
+                        </div>
+                        {respondent.primaryContactName && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Primary Contact</p>
+                            <div className="bg-card rounded-md p-3 border border-border">
+                              <p className="text-sm font-medium text-foreground">{respondent.primaryContactName}</p>
+                              {respondent.primaryContactRole && (
+                                <p className="text-xs text-muted-foreground">{respondent.primaryContactRole}</p>
+                              )}
+                              <div className="mt-2 space-y-1">
+                                {respondent.primaryContactEmail && (
+                                  <p className="text-xs text-foreground flex items-center">
+                                    <Mail className="text-muted-foreground mr-2 w-4 h-4" />
+                                    {respondent.primaryContactEmail}
+                                  </p>
+                                )}
+                                {respondent.primaryContactPhone && (
+                                  <p className="text-xs text-foreground flex items-center">
+                                    <Phone className="text-muted-foreground mr-2 w-4 h-4" />
+                                    {respondent.primaryContactPhone}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {respondent.legalRepName && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Legal Representative</p>
+                            <div className="bg-card rounded-md p-3 border border-border">
+                              <p className="text-sm font-medium text-foreground">{respondent.legalRepName}</p>
+                              {respondent.legalRepFirm && (
+                                <p className="text-xs text-muted-foreground">{respondent.legalRepFirm}</p>
+                              )}
+                              <div className="mt-2 space-y-1">
+                                {respondent.legalRepEmail && (
+                                  <p className="text-xs text-foreground flex items-center">
+                                    <Mail className="text-muted-foreground mr-2 w-4 h-4" />
+                                    {respondent.legalRepEmail}
+                                  </p>
+                                )}
+                                {respondent.legalRepPhone && (
+                                  <p className="text-xs text-foreground flex items-center">
+                                    <Phone className="text-muted-foreground mr-2 w-4 h-4" />
+                                    {respondent.legalRepPhone}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
           </div>
+
+          {applicants.length === 0 && respondents.length === 0 && (
+            <div className="text-center p-8 mt-4">
+              <Users className="text-muted-foreground w-16 h-16 mb-4" />
+              <p className="text-foreground font-medium">No party information</p>
+              <p className="text-muted-foreground text-sm">Party details will appear here once extracted from documents</p>
+            </div>
+          )}
         </TabsContent>
 
         {/* Tab Content - Documents */}

@@ -12,6 +12,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import type { Document } from "@shared/schema";
 import type { UploadResult } from '@uppy/core';
+import { Upload, Search, RefreshCw, Download, Eye, FileText, FileImage, FileSpreadsheet, CheckCircle } from "lucide-react";
 
 interface DocumentManagerProps {
   caseId: string;
@@ -144,11 +145,11 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
   };
 
   const getDocumentIcon = (mimeType: string) => {
-    if (mimeType.includes('pdf')) return 'fas fa-file-pdf text-red-500';
-    if (mimeType.includes('word') || mimeType.includes('msword')) return 'fas fa-file-word text-blue-500';
-    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'fas fa-file-excel text-green-500';
-    if (mimeType.includes('image')) return 'fas fa-file-image text-purple-500';
-    return 'fas fa-file-alt text-gray-500';
+    if (mimeType.includes('pdf')) return <FileText className="text-red-500 w-12 h-12" />;
+    if (mimeType.includes('word') || mimeType.includes('msword')) return <FileText className="text-blue-500 w-12 h-12" />;
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return <FileSpreadsheet className="text-green-500 w-12 h-12" />;
+    if (mimeType.includes('image')) return <FileImage className="text-purple-500 w-12 h-12" />;
+    return <FileText className="text-gray-500 w-12 h-12" />;
   };
 
   const getCategoryColor = (category: string) => {
@@ -205,13 +206,13 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
             buttonClassName="bg-primary text-primary-foreground hover:opacity-90"
           >
             <div className="flex items-center space-x-2">
-              <i className="fas fa-upload"></i>
+              <Upload className="w-4 h-4" />
               <span>Upload Document</span>
             </div>
           </ObjectUploader>
           
           <div className="relative">
-            <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground text-sm"></i>
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
               type="text"
               placeholder="Search documents..."
@@ -243,7 +244,7 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
         </div>
       ) : filteredDocuments.length === 0 ? (
         <div className="text-center p-8" data-testid="text-no-documents">
-          <i className="fas fa-file-alt text-muted-foreground text-4xl mb-4"></i>
+          <FileText className="text-muted-foreground w-16 h-16 mx-auto mb-4" />
           <p className="text-foreground font-medium">
             {searchTerm || categoryFilter !== 'All Categories' ? 'No matching documents' : 'No documents uploaded'}
           </p>
@@ -259,7 +260,7 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
           {filteredDocuments.map((document: Document) => (
             <Card key={document.id} className="hover:shadow-md transition-shadow">
               <div className="document-preview h-40 bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center">
-                <i className={`${getDocumentIcon(document.mimeType)} text-5xl`}></i>
+                {getDocumentIcon(document.mimeType)}
               </div>
               <CardContent className="p-4">
                 <h4 className="text-sm font-semibold text-foreground mb-1 truncate" title={document.originalName}>
@@ -281,7 +282,7 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
                       title="Re-Parse Document"
                       data-testid={`button-reparse-${document.id}`}
                     >
-                      <i className="fas fa-sync-alt"></i>
+                      <RefreshCw className="w-4 h-4" />
                     </Button>
                     <Button
                       size="sm"
@@ -290,7 +291,7 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
                       title="Download"
                       data-testid={`button-download-${document.id}`}
                     >
-                      <i className="fas fa-download"></i>
+                      <Download className="w-4 h-4" />
                     </Button>
                     <Button
                       size="sm"
@@ -302,13 +303,13 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
                       title="View"
                       data-testid={`button-view-${document.id}`}
                     >
-                      <i className="fas fa-eye"></i>
+                      <Eye className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
                 {document.isProcessed && (
                   <div className="mt-2 flex items-center space-x-1 text-xs text-green-600">
-                    <i className="fas fa-check-circle"></i>
+                    <CheckCircle className="w-3 h-3" />
                     <span>AI Processed</span>
                   </div>
                 )}

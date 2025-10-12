@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import type { Document } from "@shared/schema";
+import { Download, X, FileText, Loader2 } from 'lucide-react';
 
 interface DocumentViewerProps {
   document: Document | null;
@@ -146,7 +147,7 @@ export default function DocumentViewer({ document, isOpen, onClose }: DocumentVi
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center space-x-2">
-              <i className="fas fa-file-alt text-primary"></i>
+              <FileText className="text-primary w-5 h-5" />
               <span>{document.originalName}</span>
             </DialogTitle>
             <Button
@@ -155,7 +156,7 @@ export default function DocumentViewer({ document, isOpen, onClose }: DocumentVi
               onClick={downloadDocument}
               data-testid="button-download-viewer"
             >
-              <i className="fas fa-download mr-2"></i>
+              <Download className="w-4 h-4 mr-2" />
               Download
             </Button>
           </div>
@@ -195,7 +196,7 @@ export default function DocumentViewer({ document, isOpen, onClose }: DocumentVi
 
           {!loading && viewerType === 'unsupported' && (
             <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-              <i className="fas fa-file text-muted-foreground text-6xl mb-4"></i>
+              <FileText className="text-muted-foreground w-16 h-16 mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">
                 Preview not available
               </h3>
@@ -212,7 +213,7 @@ export default function DocumentViewer({ document, isOpen, onClose }: DocumentVi
                 Supported formats: PDF, DOCX, XLSX
               </p>
               <Button onClick={downloadDocument} data-testid="button-download-unsupported">
-                <i className="fas fa-download mr-2"></i>
+                <Download className="w-4 h-4 mr-2" />
                 Download File
               </Button>
             </div>
