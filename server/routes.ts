@@ -351,10 +351,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         visibility: "private",
       });
 
+      // Extract text from the uploaded document
+      let extractedText = '';
+      let isProcessed = false;
+      
+      try {
+        // Get the file from object storage using the objectPath
+        const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
+        
+        // Download the file contents as a buffer
+        const [fileBuffer] = await objectFile.download();
+        
+        // Extract text from the buffer
+        extractedText = await aiService.extractTextFromDocument(fileBuffer, mimeType || 'application/octet-stream');
+        isProcessed = true;
+      } catch (extractError) {
+        console.error("Error extracting text from uploaded document:", extractError);
+        // Continue without text extraction - document will be saved but not processed
+      }
+
       // Create document record
-      // Note: Text extraction is skipped for ObjectUploader uploads since the file
-      // is directly uploaded to storage and the presigned URL is PUT-only.
-      // Text extraction can be added later via a separate processing endpoint if needed.
       const documentData = {
         caseId: req.params.id,
         fileName: fileName || `document_${Date.now()}`,
@@ -363,8 +379,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mimeType: mimeType || 'application/octet-stream',
         category: category || 'General',
         objectPath: objectPath,
-        extractedText: '', // Will be empty for direct uploads
-        isProcessed: false, // Mark as not processed since text extraction is skipped
+        extractedText: extractedText,
+        isProcessed: isProcessed,
         uploadedBy: userId,
       };
 

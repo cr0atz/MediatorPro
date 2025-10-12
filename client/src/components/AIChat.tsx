@@ -32,6 +32,7 @@ export default function AIChat({ caseId }: AIChatProps) {
   ]);
   const [question, setQuestion] = useState('');
   const [selectedIssue, setSelectedIssue] = useState('');
+  const [customIssue, setCustomIssue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: caseData } = useQuery({
@@ -184,15 +185,16 @@ export default function AIChat({ caseId }: AIChatProps) {
   };
 
   const handleGenerateIRAC = () => {
-    if (!selectedIssue) {
+    const issueToAnalyze = customIssue.trim() || selectedIssue;
+    if (!issueToAnalyze) {
       toast({
         title: "Error",
-        description: "Please select a legal issue first",
+        description: "Please enter or select a legal issue first",
         variant: "destructive",
       });
       return;
     }
-    iracMutation.mutate(selectedIssue);
+    iracMutation.mutate(issueToAnalyze);
   };
 
   const suggestedQuestions = [
@@ -333,22 +335,56 @@ export default function AIChat({ caseId }: AIChatProps) {
             <p className="text-sm text-muted-foreground mb-4">
               Generate Issue, Rule, Application, Conclusion analysis
             </p>
-            <Select value={selectedIssue} onValueChange={setSelectedIssue}>
-              <SelectTrigger className="w-full mb-3" data-testid="select-legal-issue">
-                <SelectValue placeholder="Select Legal Issue" />
-              </SelectTrigger>
-              <SelectContent>
-                {legalIssues.map((issue) => (
-                  <SelectItem key={issue} value={issue}>
-                    {issue}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Enter Custom Issue</label>
+                <Input
+                  value={customIssue}
+                  onChange={(e) => {
+                    setCustomIssue(e.target.value);
+                    if (e.target.value.trim()) {
+                      setSelectedIssue('');
+                    }
+                  }}
+                  placeholder="Type a custom legal issue..."
+                  className="w-full"
+                  data-testid="input-custom-issue"
+                />
+              </div>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-card px-2 text-muted-foreground">OR</span>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Select from Templates</label>
+                <Select 
+                  value={selectedIssue} 
+                  onValueChange={(value) => {
+                    setSelectedIssue(value);
+                    setCustomIssue('');
+                  }}
+                >
+                  <SelectTrigger className="w-full" data-testid="select-legal-issue">
+                    <SelectValue placeholder="Select Legal Issue" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {legalIssues.map((issue) => (
+                      <SelectItem key={issue} value={issue}>
+                        {issue}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <Button 
-              className="w-full bg-green-500 hover:bg-green-600"
+              className="w-full bg-green-500 hover:bg-green-600 mt-4"
               onClick={handleGenerateIRAC}
-              disabled={iracMutation.isPending || !selectedIssue}
+              disabled={iracMutation.isPending || (!customIssue.trim() && !selectedIssue)}
               data-testid="button-generate-irac"
             >
               <i className="fas fa-brain mr-2"></i>

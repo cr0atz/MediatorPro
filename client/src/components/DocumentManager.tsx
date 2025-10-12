@@ -40,38 +40,57 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
   };
 
   const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    try {
-      if (result.successful && result.successful.length > 0) {
-        const uploadedFile = result.successful[0];
-        const uploadURL = uploadedFile.uploadURL || '';
-        
-        // Call the backend to process the uploaded document
-        const formData = new FormData();
-        formData.append('uploadURL', uploadURL);
-        formData.append('category', 'General');
-        
-        await apiRequest('POST', `/api/cases/${caseId}/documents/process-upload`, {
-          uploadURL: uploadURL,
-          fileName: uploadedFile.name,
-          fileSize: uploadedFile.size,
-          mimeType: uploadedFile.type,
-          category: 'General',
-        });
+    if (result.successful && result.successful.length > 0) {
+      // Process all uploaded files with individual error handling
+      const processResults = await Promise.allSettled(
+        result.successful.map(async (uploadedFile) => {
+          const uploadURL = uploadedFile.uploadURL || '';
+          
+          const response = await apiRequest('POST', `/api/cases/${caseId}/documents/process-upload`, {
+            uploadURL: uploadURL,
+            fileName: uploadedFile.name,
+            fileSize: uploadedFile.size,
+            mimeType: uploadedFile.type,
+            category: 'General',
+          });
 
+          if (!response.ok) {
+            throw new Error(`Failed to process ${uploadedFile.name}`);
+          }
+          
+          return uploadedFile.name;
+        })
+      );
+
+      // Count successes and failures
+      const succeeded = processResults.filter(r => r.status === 'fulfilled').length;
+      const failed = processResults.filter(r => r.status === 'rejected').length;
+
+      // Show appropriate toast message
+      if (failed === 0) {
         toast({
           title: "Success",
-          description: "Document uploaded and processed successfully",
+          description: `${succeeded} document${succeeded > 1 ? 's' : ''} uploaded and processed successfully`,
         });
-
-        queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId, "documents"] });
+      } else if (succeeded === 0) {
+        toast({
+          title: "Error",
+          description: "Failed to process all uploaded documents",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Partial Success",
+          description: `${succeeded} document${succeeded > 1 ? 's' : ''} processed, ${failed} failed`,
+          variant: "destructive",
+        });
       }
-    } catch (error) {
-      console.error('Error processing upload:', error);
-      toast({
-        title: "Error",
-        description: "Failed to process uploaded document",
-        variant: "destructive",
-      });
+
+      // Invalidate queries if any documents were processed successfully
+      if (succeeded > 0) {
+        queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId, "documents"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId] });
+      }
     }
   };
 
