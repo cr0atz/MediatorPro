@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ObjectUploader } from "@/components/ObjectUploader";
+import DocumentViewer from "@/components/DocumentViewer";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import type { Document } from "@shared/schema";
@@ -20,6 +21,8 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
+  const [viewingDocument, setViewingDocument] = useState<Document | null>(null);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
 
   const { data: documents = [], isLoading } = useQuery<Document[]>({
     queryKey: ["/api/cases", caseId, "documents"],
@@ -293,12 +296,8 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
                       size="sm"
                       variant="ghost"
                       onClick={() => {
-                        if (document.objectPath) {
-                          const viewUrl = document.objectPath.startsWith('/objects/') 
-                            ? document.objectPath 
-                            : `/objects/${document.objectPath}`;
-                          window.open(viewUrl, '_blank');
-                        }
+                        setViewingDocument(document);
+                        setIsViewerOpen(true);
                       }}
                       title="View"
                       data-testid={`button-view-${document.id}`}
@@ -318,6 +317,15 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
           ))}
         </div>
       )}
+
+      <DocumentViewer
+        document={viewingDocument}
+        isOpen={isViewerOpen}
+        onClose={() => {
+          setIsViewerOpen(false);
+          setViewingDocument(null);
+        }}
+      />
     </div>
   );
 }
