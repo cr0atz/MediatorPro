@@ -14,6 +14,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import AIChat from "./AIChat";
 import DocumentManager from "./DocumentManager";
@@ -32,7 +43,69 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
   const { toast } = useToast();
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showAddPartyDialog, setShowAddPartyDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [partyForm, setPartyForm] = useState({
+    entityName: '',
+    partyType: 'applicant',
+    primaryContactName: '',
+    primaryContactRole: '',
+    primaryContactEmail: '',
+    primaryContactPhone: '',
+    legalRepName: '',
+    legalRepFirm: '',
+    legalRepEmail: '',
+    legalRepPhone: '',
+  });
+
+  const addPartyMutation = useMutation({
+    mutationFn: async (partyData: any) => {
+      const response = await apiRequest('POST', `/api/cases/${caseId}/parties`, partyData);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to add party');
+      }
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId] });
+      toast({
+        title: "Success",
+        description: "Party added successfully",
+      });
+      setShowAddPartyDialog(false);
+      setPartyForm({
+        entityName: '',
+        partyType: 'applicant',
+        primaryContactName: '',
+        primaryContactRole: '',
+        primaryContactEmail: '',
+        primaryContactPhone: '',
+        legalRepName: '',
+        legalRepFirm: '',
+        legalRepEmail: '',
+        legalRepPhone: '',
+      });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add party",
+        variant: "destructive",
+      });
+    },
+  });
 
   const deleteCaseMutation = useMutation({
     mutationFn: async () => {
@@ -389,6 +462,13 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
 
         {/* Tab Content - Parties */}
         <TabsContent value="parties" className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-semibold text-foreground">Case Parties</h2>
+            <Button onClick={() => setShowAddPartyDialog(true)} data-testid="button-add-party">
+              <i className="fas fa-plus mr-2"></i>
+              Add Party
+            </Button>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Applicant */}
             {applicant && (
@@ -586,6 +666,139 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={showAddPartyDialog} onOpenChange={setShowAddPartyDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Party</DialogTitle>
+            <DialogDescription>
+              Manually add a party to this case. Fill in the required fields and any additional information available.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <Label htmlFor="entityName">Entity Name *</Label>
+                <Input
+                  id="entityName"
+                  value={partyForm.entityName}
+                  onChange={(e) => setPartyForm({...partyForm, entityName: e.target.value})}
+                  placeholder="Company or individual name"
+                  data-testid="input-entity-name"
+                />
+              </div>
+              <div className="col-span-2">
+                <Label htmlFor="partyType">Party Type *</Label>
+                <Select value={partyForm.partyType} onValueChange={(value) => setPartyForm({...partyForm, partyType: value})}>
+                  <SelectTrigger data-testid="select-party-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="applicant">Applicant</SelectItem>
+                    <SelectItem value="respondent">Respondent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Primary Contact</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="primaryContactName">Contact Name</Label>
+                  <Input
+                    id="primaryContactName"
+                    value={partyForm.primaryContactName}
+                    onChange={(e) => setPartyForm({...partyForm, primaryContactName: e.target.value})}
+                    data-testid="input-primary-contact-name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="primaryContactRole">Role/Title</Label>
+                  <Input
+                    id="primaryContactRole"
+                    value={partyForm.primaryContactRole}
+                    onChange={(e) => setPartyForm({...partyForm, primaryContactRole: e.target.value})}
+                    data-testid="input-primary-contact-role"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="primaryContactEmail">Email</Label>
+                  <Input
+                    id="primaryContactEmail"
+                    type="email"
+                    value={partyForm.primaryContactEmail}
+                    onChange={(e) => setPartyForm({...partyForm, primaryContactEmail: e.target.value})}
+                    data-testid="input-primary-contact-email"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="primaryContactPhone">Phone</Label>
+                  <Input
+                    id="primaryContactPhone"
+                    value={partyForm.primaryContactPhone}
+                    onChange={(e) => setPartyForm({...partyForm, primaryContactPhone: e.target.value})}
+                    data-testid="input-primary-contact-phone"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Legal Representative</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="legalRepName">Representative Name</Label>
+                  <Input
+                    id="legalRepName"
+                    value={partyForm.legalRepName}
+                    onChange={(e) => setPartyForm({...partyForm, legalRepName: e.target.value})}
+                    data-testid="input-legal-rep-name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="legalRepFirm">Law Firm</Label>
+                  <Input
+                    id="legalRepFirm"
+                    value={partyForm.legalRepFirm}
+                    onChange={(e) => setPartyForm({...partyForm, legalRepFirm: e.target.value})}
+                    data-testid="input-legal-rep-firm"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="legalRepEmail">Email</Label>
+                  <Input
+                    id="legalRepEmail"
+                    type="email"
+                    value={partyForm.legalRepEmail}
+                    onChange={(e) => setPartyForm({...partyForm, legalRepEmail: e.target.value})}
+                    data-testid="input-legal-rep-email"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="legalRepPhone">Phone</Label>
+                  <Input
+                    id="legalRepPhone"
+                    value={partyForm.legalRepPhone}
+                    onChange={(e) => setPartyForm({...partyForm, legalRepPhone: e.target.value})}
+                    data-testid="input-legal-rep-phone"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddPartyDialog(false)} data-testid="button-cancel-add-party">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => addPartyMutation.mutate(partyForm)}
+              disabled={!partyForm.entityName || addPartyMutation.isPending}
+              data-testid="button-submit-add-party"
+            >
+              {addPartyMutation.isPending ? "Adding..." : "Add Party"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -265,6 +265,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/cases/:id/parties', isAuthenticated, async (req: any, res) => {
+    try {
+      const caseId = req.params.id;
+      const partyData = {
+        caseId,
+        ...req.body,
+      };
+
+      const validatedPartyData = insertPartySchema.parse(partyData);
+      const party = await storage.createParty(validatedPartyData);
+
+      res.json(party);
+    } catch (error) {
+      console.error("Error creating party:", error);
+      res.status(500).json({ message: "Failed to create party" });
+    }
+  });
+
   // Document routes
   app.get('/api/cases/:id/documents', isAuthenticated, async (req, res) => {
     try {
