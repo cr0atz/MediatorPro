@@ -172,8 +172,8 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
   }
 
   const case_ = caseData as Case & { parties: Party[], documents: Document[] };
-  const applicant = case_.parties.find(p => p.partyType === 'applicant');
-  const respondent = case_.parties.find(p => p.partyType === 'respondent');
+  const applicants = case_.parties.filter(p => p.partyType === 'applicant');
+  const respondents = case_.parties.filter(p => p.partyType === 'respondent');
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -470,9 +470,9 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
             </Button>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Applicant */}
-            {applicant && (
-              <Card>
+            {/* Applicants */}
+            {applicants.map((applicant, index) => (
+              <Card key={applicant.id || index}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-foreground">Applicant</h3>
@@ -481,7 +481,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                   <div className="space-y-4">
                     <div>
                       <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Entity Name</p>
-                      <p className="text-sm font-semibold text-foreground" data-testid="text-applicant-name">
+                      <p className="text-sm font-semibold text-foreground" data-testid={`text-applicant-name-${applicant.id}`}>
                         {applicant.entityName}
                       </p>
                     </div>
@@ -538,11 +538,11 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                   </div>
                 </CardContent>
               </Card>
-            )}
+            ))}
 
-            {/* Respondent */}
-            {respondent && (
-              <Card>
+            {/* Respondents */}
+            {respondents.map((respondent, index) => (
+              <Card key={respondent.id || index}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-foreground">Respondent</h3>
@@ -551,7 +551,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                   <div className="space-y-4">
                     <div>
                       <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Entity Name</p>
-                      <p className="text-sm font-semibold text-foreground" data-testid="text-respondent-name">
+                      <p className="text-sm font-semibold text-foreground" data-testid={`text-respondent-name-${respondent.id}`}>
                         {respondent.entityName}
                       </p>
                     </div>
@@ -608,9 +608,9 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                   </div>
                 </CardContent>
               </Card>
-            )}
+            ))}
 
-            {!applicant && !respondent && (
+            {applicants.length === 0 && respondents.length === 0 && (
               <div className="col-span-2 text-center p-8">
                 <i className="fas fa-users text-muted-foreground text-4xl mb-4"></i>
                 <p className="text-foreground font-medium">No party information</p>
