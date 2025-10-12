@@ -10,6 +10,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**October 12, 2025 - Session 4**
+- Implemented complete SMTP configuration and email template management system:
+  - Added Settings page accessible via user dropdown menu (changed name display to "Danny Jovica")
+  - SMTP Configuration tab: Form for host, port, username, password, from email/name with save and test functionality
+  - Email Templates tab: Full CRUD interface for creating, editing, and deleting email templates with categories
+  - Added smtpSettings database table with user-specific SMTP configurations
+  - Integrated existing emailTemplates system with new UI
+- Fixed React render loop bug in Settings component by moving form.reset() to useEffect
+- Updated auth upsert to use email as conflict target (handles legacy UUID-based users, but may have edge case with email changes)
+- All Settings features tested end-to-end and fully functional
+
 **October 12, 2025 - Session 3**
 - Migrated entire icon system from Font Awesome to Lucide React to resolve Brave browser blocking
   - Removed Font Awesome CDN link from index.html (privacy and browser compatibility fix)

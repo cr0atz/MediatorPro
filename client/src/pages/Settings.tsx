@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -87,10 +87,7 @@ export default function Settings() {
   // Update SMTP settings mutation
   const smtpMutation = useMutation({
     mutationFn: async (data: InsertSmtpSettings) => {
-      return apiRequest('/api/smtp-settings', {
-        method: smtpSettings ? 'PATCH' : 'POST',
-        body: JSON.stringify(data),
-      });
+      return apiRequest(smtpSettings ? 'PATCH' : 'POST', '/api/smtp-settings', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/smtp-settings'] });
@@ -111,9 +108,7 @@ export default function Settings() {
   // Test SMTP connection mutation
   const testSmtpMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/smtp-settings/test', {
-        method: 'POST',
-      });
+      return apiRequest('POST', '/api/smtp-settings/test', {});
     },
     onSuccess: () => {
       toast({
@@ -133,10 +128,11 @@ export default function Settings() {
   // Create/Update email template mutation
   const templateMutation = useMutation({
     mutationFn: async (data: InsertEmailTemplate) => {
-      return apiRequest(selectedTemplate ? `/api/email/templates/${selectedTemplate.id}` : '/api/email/templates', {
-        method: selectedTemplate ? 'PUT' : 'POST',
-        body: JSON.stringify(data),
-      });
+      return apiRequest(
+        selectedTemplate ? 'PUT' : 'POST',
+        selectedTemplate ? `/api/email/templates/${selectedTemplate.id}` : '/api/email/templates',
+        data
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/email/templates'] });
@@ -159,9 +155,7 @@ export default function Settings() {
   // Delete email template mutation
   const deleteTemplateMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/email/templates/${id}`, {
-        method: 'DELETE',
-      });
+      return apiRequest('DELETE', `/api/email/templates/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/email/templates'] });
@@ -193,9 +187,11 @@ export default function Settings() {
   };
 
   // Update form when SMTP settings are loaded
-  if (smtpSettings && !smtpForm.formState.isDirty) {
-    smtpForm.reset(smtpSettings);
-  }
+  useEffect(() => {
+    if (smtpSettings && !smtpForm.formState.isDirty) {
+      smtpForm.reset(smtpSettings);
+    }
+  }, [smtpSettings, smtpForm]);
 
   const handleEditTemplate = (template: EmailTemplate) => {
     setSelectedTemplate(template);
