@@ -8,6 +8,18 @@ Mediator Pro is a comprehensive case management system designed for legal mediat
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+**October 12, 2025**
+- Added "Send to Case Notes" button in AI Analysis - saves AI responses to case notes with one click
+- Added "Re-Parse" button for documents - reruns AI extraction when OCR misses details (e.g., landlord contact information)
+- Added manual "Add Party" dialog with complete form - handles parties missed by AI extraction
+  - Form includes: entity name, party type, primary contact details, legal representative information
+  - Properly validates and persists to database
+  - Updates UI immediately via cache invalidation
+- Fixed auth bug: Changed upsert conflict target from email to id to prevent duplicate key errors on repeat OIDC logins
+- All features tested end-to-end and architect-approved for production use
+
 ## System Architecture
 
 ### Frontend Architecture
