@@ -10,6 +10,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**October 12, 2025 - Session 5**
+- Fixed email template synchronization between Settings and Send Email dialog:
+  - EmailModal component now uses database templates from /api/email/templates endpoint instead of hardcoded templates
+  - Custom Email option always available alongside database templates
+  - Implemented comprehensive placeholder replacement system via replacePlaceholders() function
+  - All supported placeholders: {caseNumber}, {mediatorName}, {mediationType}, {mediationDate}, {mediationTime}, {recipientName}, {disputeType}, {disputeAmount}
+  - Missing data shows user-friendly bracket format like [Mediator Name] instead of empty strings or raw {tokens}
+  - Added CaseWithDetails TypeScript type for type-safe case queries with parties and documents
+  - Fixed getRecipients function name bug that caused runtime errors
+- End-to-end testing confirmed all placeholders replaced correctly with no runtime errors
+- Architect-approved as production-ready
+
 **October 12, 2025 - Session 4**
 - Implemented complete SMTP configuration and email template management system:
   - Added Settings page accessible via user dropdown menu (changed name display to "Danny Jovica")
