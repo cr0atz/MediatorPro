@@ -25,14 +25,23 @@ export default function DocumentViewer({ document, isOpen, onClose }: DocumentVi
     }
 
     const mimeType = document.mimeType.toLowerCase();
+    const fileName = document.originalName.toLowerCase();
     
     if (mimeType.includes('pdf')) {
       setViewerType('pdf');
       setContent("");
-    } else if (mimeType.includes('word') || mimeType.includes('msword') || mimeType.includes('document')) {
+    } else if (
+      mimeType.includes('wordprocessingml') || 
+      mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      fileName.endsWith('.docx')
+    ) {
       setViewerType('word');
       loadWordDocument();
-    } else if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) {
+    } else if (
+      mimeType.includes('spreadsheetml') || 
+      mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      fileName.endsWith('.xlsx')
+    ) {
       setViewerType('excel');
       loadExcelDocument();
     } else {
@@ -190,8 +199,17 @@ export default function DocumentViewer({ document, isOpen, onClose }: DocumentVi
               <h3 className="text-lg font-semibold text-foreground mb-2">
                 Preview not available
               </h3>
-              <p className="text-muted-foreground mb-4">
-                This file type cannot be previewed. Please download it to view.
+              <p className="text-muted-foreground mb-2">
+                {document?.originalName.toLowerCase().endsWith('.doc') && 
+                  'Legacy .doc files are not supported for inline preview. Please convert to .docx format or download to view.'}
+                {document?.originalName.toLowerCase().endsWith('.xls') && 
+                  'Legacy .xls files are not supported for inline preview. Please convert to .xlsx format or download to view.'}
+                {!document?.originalName.toLowerCase().endsWith('.doc') && 
+                 !document?.originalName.toLowerCase().endsWith('.xls') && 
+                  'This file type cannot be previewed inline. Please download it to view.'}
+              </p>
+              <p className="text-xs text-muted-foreground mb-4">
+                Supported formats: PDF, DOCX, XLSX
               </p>
               <Button onClick={downloadDocument} data-testid="button-download-unsupported">
                 <i className="fas fa-download mr-2"></i>
