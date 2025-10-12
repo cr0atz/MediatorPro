@@ -113,6 +113,20 @@ export const emailTemplates = pgTable("email_templates", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const smtpSettings = pgTable("smtp_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  host: text("host").notNull(),
+  port: integer("port").notNull(),
+  secure: boolean("secure").default(true),
+  username: text("username").notNull(),
+  password: text("password").notNull(),
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const casesRelations = relations(cases, ({ many, one }) => ({
   parties: many(parties),
@@ -206,6 +220,12 @@ export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit
   updatedAt: true,
 });
 
+export const insertSmtpSettingsSchema = createInsertSchema(smtpSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type Case = typeof cases.$inferSelect;
@@ -214,9 +234,11 @@ export type Document = typeof documents.$inferSelect;
 export type CaseNote = typeof caseNotes.$inferSelect;
 export type AiAnalysis = typeof aiAnalyses.$inferSelect;
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
+export type SmtpSettings = typeof smtpSettings.$inferSelect;
 export type InsertCase = z.infer<typeof insertCaseSchema>;
 export type InsertParty = z.infer<typeof insertPartySchema>;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type InsertCaseNote = z.infer<typeof insertCaseNoteSchema>;
 export type InsertAiAnalysis = z.infer<typeof insertAiAnalysisSchema>;
 export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
+export type InsertSmtpSettings = z.infer<typeof insertSmtpSettingsSchema>;

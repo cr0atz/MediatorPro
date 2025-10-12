@@ -2,6 +2,15 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Settings, LogOut, ChevronDown } from "lucide-react";
 
 interface LayoutProps {
   children: ReactNode;
@@ -59,38 +68,51 @@ export default function Layout({ children }: LayoutProps) {
         </nav>
         
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
-          <div className="flex items-center space-x-3 px-4 py-3">
-            <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-              {user?.profileImageUrl ? (
-                <img
-                  src={user.profileImageUrl}
-                  alt="Profile"
-                  className="w-10 h-10 rounded-full object-cover"
-                />
-              ) : (
-                <span className="text-sm font-semibold text-secondary-foreground">
-                  {user?.firstName?.[0] || user?.email?.[0] || "U"}
-                </span>
-              )}
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-foreground" data-testid="text-user-name">
-                {user?.firstName && user?.lastName 
-                  ? `${user.firstName} ${user.lastName}`
-                  : user?.email || "User"
-                }
-              </p>
-              <p className="text-xs text-muted-foreground">Senior Mediator</p>
-            </div>
-            <button
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => window.location.href = '/api/logout'}
-              title="Logout"
-              data-testid="button-logout"
-            >
-              <i className="fas fa-cog"></i>
-            </button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-accent rounded-md transition-colors" data-testid="button-user-menu">
+                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+                  {user?.profileImageUrl ? (
+                    <img
+                      src={user.profileImageUrl}
+                      alt="Profile"
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-sm font-semibold text-secondary-foreground">
+                      D
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-medium text-foreground" data-testid="text-user-name">
+                    Danny Jovica
+                  </p>
+                  <p className="text-xs text-muted-foreground">Senior Mediator</p>
+                </div>
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/settings" className="cursor-pointer" data-testid="menu-settings">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => window.location.href = '/api/logout'}
+                className="cursor-pointer text-red-600 focus:text-red-600"
+                data-testid="menu-logout"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </aside>
 
