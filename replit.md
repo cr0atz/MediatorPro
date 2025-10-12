@@ -10,6 +10,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**October 12, 2025 - Session 3**
+- Migrated entire icon system from Font Awesome to Lucide React to resolve Brave browser blocking
+  - Removed Font Awesome CDN link from index.html (privacy and browser compatibility fix)
+  - Replaced all icon references across DocumentManager, DocumentViewer, and CaseDetail components
+  - All icons now render correctly across all browsers including Brave
+- Restructured party layout with dedicated columns for better organization:
+  - Left column: All applicants grouped together with "Applicant" header and "Primary Party" badges
+  - Right column: All respondents grouped together with "Respondent" header and "Opposing Party" badges
+  - Improved visual hierarchy and clarity for multi-party cases
+- All changes architect-approved and production-ready
+
 **October 12, 2025 - Session 2**
 - Fixed party display bug: Changed from `.find()` to `.filter()` to display ALL parties (not just first one)
   - Multiple applicants and respondents now show as separate cards
