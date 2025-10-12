@@ -9,13 +9,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import type { Case, Party } from "@shared/schema";
+import type { Case, Party, EmailTemplate, Document } from "@shared/schema";
 
 interface EmailModalProps {
   isOpen: boolean;
   onClose: () => void;
   caseId: string | null;
 }
+
+type CaseWithDetails = Case & { parties: Party[], documents: Document[] };
 
 interface EmailRecipient {
   email: string;
@@ -30,12 +32,12 @@ export default function EmailModal({ isOpen, onClose, caseId }: EmailModalProps)
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   
-  const { data: caseData } = useQuery({
+  const { data: caseData } = useQuery<CaseWithDetails>({
     queryKey: ["/api/cases", caseId],
     enabled: !!caseId,
   });
 
-  const { data: templates = [] } = useQuery({
+  const { data: templates = [] } = useQuery<EmailTemplate[]>({
     queryKey: ["/api/email/templates"],
   });
 
@@ -109,56 +111,47 @@ export default function EmailModal({ isOpen, onClose, caseId }: EmailModalProps)
     return recipients;
   };
 
-  const handleTemplateChange = (template: string) => {
-    setSelectedTemplate(template);
+  const replacePlaceholders = (text: string): string => {
+    if (!text) return '';
     
-    // Set default subject and message based on template
-    if (template === 'mediation-confirmation') {
-      setSubject(`Mediation Session Confirmation - Case ${caseData?.caseNumber || ''}`);
-      setMessage(`Dear [Recipient Name],
+    // Get available recipients for {recipientName} placeholder
+    const availableRecipients = getEmailRecipients();
+    const recipientName = availableRecipients.length === 1 
+      ? availableRecipients[0].name 
+      : availableRecipients.length > 1 
+        ? 'All' 
+        : '[Recipient Name]';
+    
+    // Replace all supported placeholders
+    return text
+      .replace(/\{caseNumber\}/g, caseData?.caseNumber || '[Case Number]')
+      .replace(/\{mediatorName\}/g, caseData?.mediatorName || '[Mediator Name]')
+      .replace(/\{mediationDate\}/g, caseData?.mediationDate ? new Date(caseData.mediationDate).toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' }) : '[Mediation Date]')
+      .replace(/\{mediationTime\}/g, caseData?.mediationDate ? new Date(caseData.mediationDate).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : '[Mediation Time]')
+      .replace(/\{mediationType\}/g, caseData?.mediationType || '[Mediation Type]')
+      .replace(/\{recipientName\}/g, recipientName)
+      .replace(/\{disputeType\}/g, caseData?.disputeType || '[Dispute Type]')
+      .replace(/\{disputeAmount\}/g, caseData?.disputeAmount ? `$${caseData.disputeAmount.toLocaleString()}` : '[Dispute Amount]');
+  };
 
-This email confirms your mediation session for Case ${caseData?.caseNumber || ''}:
-
-Date: ${caseData?.mediationDate ? new Date(caseData.mediationDate).toLocaleDateString('en-AU') : 'TBD'}
-Time: ${caseData?.mediationDate ? new Date(caseData.mediationDate).toLocaleTimeString('en-AU') : 'TBD'}
-Type: ${caseData?.mediationType || 'TBD'}
-
-Please ensure you have reviewed all case documents prior to the session.
-
-Best regards,
-${caseData?.mediatorName || 'Mediator'}
-Senior Mediator`);
-    } else if (template === 'document-request') {
-      setSubject(`Document Request - Case ${caseData?.caseNumber || ''}`);
-      setMessage(`Dear [Recipient Name],
-
-We require the following documents for Case ${caseData?.caseNumber || ''}:
-
-- [List documents needed]
-
-Please submit these documents by [deadline date].
-
-Best regards,
-${caseData?.mediatorName || 'Mediator'}
-Senior Mediator`);
-    } else if (template === 'session-reminder') {
-      setSubject(`Mediation Session Reminder - Case ${caseData?.caseNumber || ''}`);
-      setMessage(`Dear [Recipient Name],
-
-This is a reminder of your upcoming mediation session for Case ${caseData?.caseNumber || ''}:
-
-Date: ${caseData?.mediationDate ? new Date(caseData.mediationDate).toLocaleDateString('en-AU') : 'TBD'}
-Time: ${caseData?.mediationDate ? new Date(caseData.mediationDate).toLocaleTimeString('en-AU') : 'TBD'}
-Type: ${caseData?.mediationType || 'TBD'}
-
-Please be punctual and have all relevant documents ready.
-
-Best regards,
-${caseData?.mediatorName || 'Mediator'}
-Senior Mediator`);
-    } else if (template === 'custom') {
+  const handleTemplateChange = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    
+    if (templateId === 'custom') {
       setSubject('');
       setMessage('');
+      return;
+    }
+
+    // Find the selected template from database templates
+    const selectedDbTemplate = templates.find(t => t.id === templateId);
+    if (selectedDbTemplate) {
+      // Replace all placeholders in subject and body
+      const subject = replacePlaceholders(selectedDbTemplate.subject);
+      const body = replacePlaceholders(selectedDbTemplate.body);
+
+      setSubject(subject);
+      setMessage(body);
     }
   };
 
@@ -218,10 +211,13 @@ Senior Mediator`);
   };
 
   const availableRecipients = getEmailRecipients();
+  
+  // Build template options from database templates + custom option
   const templateOptions = [
-    { value: 'mediation-confirmation', label: 'Mediation Confirmation' },
-    { value: 'document-request', label: 'Request for Documents' },
-    { value: 'session-reminder', label: 'Session Reminder' },
+    ...templates.map(template => ({
+      value: template.id,
+      label: template.name,
+    })),
     { value: 'custom', label: 'Custom Email' },
   ];
 
