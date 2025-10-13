@@ -47,6 +47,9 @@ export const cases = pgTable("cases", {
   disputeBackground: text("dispute_background"),
   issuesForDiscussion: text("issues_for_discussion").array(),
   status: text("status").notNull().default("active"), // active, scheduled, closed
+  zoomMeetingId: text("zoom_meeting_id"),
+  zoomMeetingLink: text("zoom_meeting_link"),
+  zoomMeetingPassword: text("zoom_meeting_password"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
