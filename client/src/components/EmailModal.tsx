@@ -169,6 +169,26 @@ export default function EmailModal({ isOpen, onClose, caseId }: EmailModalProps)
         .replace(new RegExp(`\\{respondent_${num}_lawyer_phone\\}`, 'g'), respondent.legalRepPhone || `[Respondent ${num} Lawyer Phone]`);
     });
     
+    // Final pass: Replace any remaining party placeholders with bracketed fallbacks
+    // This handles cases where there are no parties or fewer parties than referenced
+    result = result
+      .replace(/\{applicant_(\d+)_name\}/g, (match, num) => `[Applicant ${num} Name]`)
+      .replace(/\{applicant_(\d+)_contact\}/g, (match, num) => `[Applicant ${num} Contact]`)
+      .replace(/\{applicant_(\d+)_email\}/g, (match, num) => `[Applicant ${num} Email]`)
+      .replace(/\{applicant_(\d+)_phone\}/g, (match, num) => `[Applicant ${num} Phone]`)
+      .replace(/\{applicant_(\d+)_lawyer\}/g, (match, num) => `[Applicant ${num} Lawyer]`)
+      .replace(/\{applicant_(\d+)_lawyer_firm\}/g, (match, num) => `[Applicant ${num} Law Firm]`)
+      .replace(/\{applicant_(\d+)_lawyer_email\}/g, (match, num) => `[Applicant ${num} Lawyer Email]`)
+      .replace(/\{applicant_(\d+)_lawyer_phone\}/g, (match, num) => `[Applicant ${num} Lawyer Phone]`)
+      .replace(/\{respondent_(\d+)_name\}/g, (match, num) => `[Respondent ${num} Name]`)
+      .replace(/\{respondent_(\d+)_contact\}/g, (match, num) => `[Respondent ${num} Contact]`)
+      .replace(/\{respondent_(\d+)_email\}/g, (match, num) => `[Respondent ${num} Email]`)
+      .replace(/\{respondent_(\d+)_phone\}/g, (match, num) => `[Respondent ${num} Phone]`)
+      .replace(/\{respondent_(\d+)_lawyer\}/g, (match, num) => `[Respondent ${num} Lawyer]`)
+      .replace(/\{respondent_(\d+)_lawyer_firm\}/g, (match, num) => `[Respondent ${num} Law Firm]`)
+      .replace(/\{respondent_(\d+)_lawyer_email\}/g, (match, num) => `[Respondent ${num} Lawyer Email]`)
+      .replace(/\{respondent_(\d+)_lawyer_phone\}/g, (match, num) => `[Respondent ${num} Lawyer Phone]`);
+    
     return result;
   };
 
