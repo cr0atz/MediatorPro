@@ -10,6 +10,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**October 13, 2025 - Session 9**
+- Migrated Google Calendar integration from Replit connector to user's own OAuth2 credentials:
+  - Extended calendarSettings schema with OAuth token storage (accessToken, refreshToken, scope, expiryDate)
+  - Created googleCalendarOAuthService.ts with OAuth2Client from googleapis library for authenticated operations
+  - Implemented OAuth flow with CSRF protection: GET /api/calendar/oauth/init and /api/calendar/oauth/callback
+  - Added "Connect to Google Calendar" button in Settings with connection status indicator
+  - Helper functions getUserCalendarService() and saveRefreshedTokens() for centralized token management
+  - Updated all calendar routes to use new OAuth service instead of Replit connector
+  - Fixed timezone bug: Removed forced UTC timezone from event creation to prevent time shifting
+  - Implemented react-big-calendar for month view (replaced list view)
+  - Fixed require() error by using ES6 import for date-fns locale
+  - Calendar now uses user's own Google API credentials from Settings for complete ownership
+- Architect-approved as production-ready
+
 **October 13, 2025 - Session 8**
 - Implemented complete Google Calendar integration with OAuth and two-way sync:
   - Created googleCalendarService.ts using Replit Google Calendar connector for OAuth
