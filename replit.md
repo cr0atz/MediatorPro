@@ -10,6 +10,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**October 13, 2025 - Session 7**
+- Implemented comprehensive credentials management for Zoom and Google Calendar integrations:
+  - Added Zoom Credentials tab in Settings page with Account ID, Client ID, and Client Secret fields
+  - Added Google Calendar tab in Settings page with Client ID and Client Secret fields
+  - Created zoomSettings and calendarSettings database tables with unique user constraints
+  - Backend routes (GET/POST) for both /api/zoom-settings and /api/calendar-settings
+  - Zod schema validation prevents malformed data and client tampering
+  - Server-injected userId ensures credentials belong to authenticated user
+  - Proper HTTP status codes: 400 for validation errors, 500 for server errors
+  - Forms repopulate fetched credentials via useEffect hooks (same pattern as SMTP settings)
+  - Query cache invalidation ensures UI stays synchronized
+  - Success/error toast notifications for user feedback
+- All features tested end-to-end and architect-approved as production-ready
+
 **October 13, 2025 - Session 6**
 - Implemented complete Zoom video conferencing integration with OAuth and meeting management:
   - Created ZoomService with server-to-server OAuth authentication using secure credentials stored in Replit Secrets
