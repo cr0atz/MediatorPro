@@ -8,10 +8,14 @@ export class GoogleCalendarOAuthService {
 
   constructor(settings: CalendarSettings) {
     // Create OAuth2 client with user's credentials
+    const redirectUri = process.env.REPLIT_DEV_DOMAIN 
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}/api/calendar/oauth/callback`
+      : 'http://localhost:5000/api/calendar/oauth/callback';
+    
     this.oauth2Client = new google.auth.OAuth2(
       settings.clientId,
       settings.clientSecret,
-      `${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000'}/api/calendar/oauth/callback`
+      redirectUri
     );
 
     // Set tokens if available
