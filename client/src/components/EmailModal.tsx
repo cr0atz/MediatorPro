@@ -122,8 +122,14 @@ export default function EmailModal({ isOpen, onClose, caseId }: EmailModalProps)
         ? 'All' 
         : '[Recipient Name]';
     
-    // Replace all supported placeholders
-    return text
+    // Get party-specific variables
+    const applicants = caseData?.parties?.filter(p => p.partyType === 'applicant') || [];
+    const respondents = caseData?.parties?.filter(p => p.partyType === 'respondent') || [];
+    
+    let result = text;
+    
+    // Replace basic case placeholders
+    result = result
       .replace(/\{caseNumber\}/g, caseData?.caseNumber || '[Case Number]')
       .replace(/\{mediatorName\}/g, caseData?.mediatorName || '[Mediator Name]')
       .replace(/\{mediationDate\}/g, caseData?.mediationDate ? new Date(caseData.mediationDate).toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' }) : '[Mediation Date]')
@@ -131,7 +137,39 @@ export default function EmailModal({ isOpen, onClose, caseId }: EmailModalProps)
       .replace(/\{mediationType\}/g, caseData?.mediationType || '[Mediation Type]')
       .replace(/\{recipientName\}/g, recipientName)
       .replace(/\{disputeType\}/g, caseData?.disputeType || '[Dispute Type]')
-      .replace(/\{disputeAmount\}/g, caseData?.disputeAmount ? `$${caseData.disputeAmount.toLocaleString()}` : '[Dispute Amount]');
+      .replace(/\{disputeAmount\}/g, caseData?.disputeAmount ? `$${caseData.disputeAmount.toLocaleString()}` : '[Dispute Amount]')
+      .replace(/\{zoomLink\}/g, caseData?.zoomMeetingLink || '[Zoom Link]')
+      .replace(/\{zoomPassword\}/g, caseData?.zoomMeetingPassword || '[Zoom Password]');
+    
+    // Replace applicant placeholders (indexed from 1)
+    applicants.forEach((applicant, index) => {
+      const num = index + 1;
+      result = result
+        .replace(new RegExp(`\\{applicant_${num}_name\\}`, 'g'), applicant.entityName || `[Applicant ${num} Name]`)
+        .replace(new RegExp(`\\{applicant_${num}_contact\\}`, 'g'), applicant.primaryContactName || `[Applicant ${num} Contact]`)
+        .replace(new RegExp(`\\{applicant_${num}_email\\}`, 'g'), applicant.primaryContactEmail || `[Applicant ${num} Email]`)
+        .replace(new RegExp(`\\{applicant_${num}_phone\\}`, 'g'), applicant.primaryContactPhone || `[Applicant ${num} Phone]`)
+        .replace(new RegExp(`\\{applicant_${num}_lawyer\\}`, 'g'), applicant.legalRepName || `[Applicant ${num} Lawyer]`)
+        .replace(new RegExp(`\\{applicant_${num}_lawyer_firm\\}`, 'g'), applicant.legalRepFirm || `[Applicant ${num} Law Firm]`)
+        .replace(new RegExp(`\\{applicant_${num}_lawyer_email\\}`, 'g'), applicant.legalRepEmail || `[Applicant ${num} Lawyer Email]`)
+        .replace(new RegExp(`\\{applicant_${num}_lawyer_phone\\}`, 'g'), applicant.legalRepPhone || `[Applicant ${num} Lawyer Phone]`);
+    });
+    
+    // Replace respondent placeholders (indexed from 1)
+    respondents.forEach((respondent, index) => {
+      const num = index + 1;
+      result = result
+        .replace(new RegExp(`\\{respondent_${num}_name\\}`, 'g'), respondent.entityName || `[Respondent ${num} Name]`)
+        .replace(new RegExp(`\\{respondent_${num}_contact\\}`, 'g'), respondent.primaryContactName || `[Respondent ${num} Contact]`)
+        .replace(new RegExp(`\\{respondent_${num}_email\\}`, 'g'), respondent.primaryContactEmail || `[Respondent ${num} Email]`)
+        .replace(new RegExp(`\\{respondent_${num}_phone\\}`, 'g'), respondent.primaryContactPhone || `[Respondent ${num} Phone]`)
+        .replace(new RegExp(`\\{respondent_${num}_lawyer\\}`, 'g'), respondent.legalRepName || `[Respondent ${num} Lawyer]`)
+        .replace(new RegExp(`\\{respondent_${num}_lawyer_firm\\}`, 'g'), respondent.legalRepFirm || `[Respondent ${num} Law Firm]`)
+        .replace(new RegExp(`\\{respondent_${num}_lawyer_email\\}`, 'g'), respondent.legalRepEmail || `[Respondent ${num} Lawyer Email]`)
+        .replace(new RegExp(`\\{respondent_${num}_lawyer_phone\\}`, 'g'), respondent.legalRepPhone || `[Respondent ${num} Lawyer Phone]`);
+    });
+    
+    return result;
   };
 
   const handleTemplateChange = (templateId: string) => {

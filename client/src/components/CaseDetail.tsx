@@ -49,6 +49,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showAddPartyDialog, setShowAddPartyDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [isCreatingZoomMeeting, setIsCreatingZoomMeeting] = useState(false);
   const [partyForm, setPartyForm] = useState({
     entityName: '',
     partyType: 'applicant',
@@ -131,6 +132,44 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
       });
     },
   });
+
+  const createZoomMeetingMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', `/api/cases/${caseId}/zoom-meeting`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create Zoom meeting');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId] });
+      toast({
+        title: "Success",
+        description: "Zoom meeting created successfully",
+      });
+      setIsCreatingZoomMeeting(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create Zoom meeting",
+        variant: "destructive",
+      });
+      setIsCreatingZoomMeeting(false);
+    },
+  });
+
+  const handleCreateZoomMeeting = () => {
+    setIsCreatingZoomMeeting(true);
+    createZoomMeetingMutation.mutate();
+  };
+
+  const handleJoinZoomMeeting = () => {
+    if (case_.zoomMeetingLink) {
+      window.open(case_.zoomMeetingLink, '_blank');
+    }
+  };
 
   const { data: caseData, isLoading, error } = useQuery({
     queryKey: ["/api/cases", caseId],
@@ -241,14 +280,17 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
               <Mail className="w-4 h-4 mr-2" />
               Send Email
             </Button>
-            <Button
-              variant="default"
-              className="bg-white text-primary hover:bg-white/90"
-              data-testid="button-join-session"
-            >
-              <Video className="w-4 h-4 mr-2" />
-              Join Session
-            </Button>
+            {case_.zoomMeetingLink && (
+              <Button
+                variant="default"
+                onClick={handleJoinZoomMeeting}
+                className="bg-white text-primary hover:bg-white/90"
+                data-testid="button-join-session"
+              >
+                <Video className="w-4 h-4 mr-2" />
+                Join Session
+              </Button>
+            )}
             <Button
               variant="ghost"
               onClick={() => setShowDeleteDialog(true)}
@@ -382,10 +424,26 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                 <CardContent className="p-6">
                   <h3 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h3>
                   <div className="space-y-2">
-                    <Button className="w-full justify-center" data-testid="button-start-zoom">
-                      <Video className="w-4 h-4 mr-2" />
-                      Start Zoom Session
-                    </Button>
+                    {case_.zoomMeetingLink ? (
+                      <Button 
+                        className="w-full justify-center" 
+                        onClick={handleJoinZoomMeeting}
+                        data-testid="button-join-zoom"
+                      >
+                        <Video className="w-4 h-4 mr-2" />
+                        Join Zoom Session
+                      </Button>
+                    ) : (
+                      <Button 
+                        className="w-full justify-center" 
+                        onClick={handleCreateZoomMeeting}
+                        disabled={isCreatingZoomMeeting}
+                        data-testid="button-start-zoom"
+                      >
+                        <Video className="w-4 h-4 mr-2" />
+                        {isCreatingZoomMeeting ? 'Creating Meeting...' : 'Start Zoom Session'}
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       className="w-full justify-center"

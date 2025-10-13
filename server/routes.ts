@@ -696,6 +696,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Zoom integration routes
+  app.post('/api/cases/:caseId/zoom-meeting', isAuthenticated, async (req: any, res) => {
+    try {
+      const { caseId } = req.params;
+      const userId = req.user.claims.sub;
+
+      // Get the case to verify ownership and get details
+      const caseData = await storage.getCase(caseId);
+      if (!caseData) {
+        return res.status(404).json({ message: "Case not found" });
+      }
+
+      if (caseData.mediatorId !== userId) {
+        return res.status(403).json({ message: "Not authorized to create meeting for this case" });
+      }
+
+      // Check if meeting already exists
+      if (caseData.zoomMeetingId) {
+        return res.status(400).json({ message: "Zoom meeting already exists for this case" });
+      }
+
+      // Import Zoom service
+      const { zoomService } = await import('./zoomService.js');
+
+      // Create Zoom meeting
+      const startTime = caseData.mediationDate || new Date(Date.now() + 24 * 60 * 60 * 1000); // Default to tomorrow if no date set
+      const meeting = await zoomService.createMeeting({
+        topic: `Mediation Session - ${caseData.caseNumber}`,
+        startTime: new Date(startTime),
+        duration: 120, // 2 hours default
+        timezone: 'Australia/Sydney',
+      });
+
+      // Update case with Zoom meeting details
+      const updatedCase = await storage.updateCase(caseId, {
+        zoomMeetingId: meeting.meetingId,
+        zoomMeetingLink: meeting.joinUrl,
+        zoomMeetingPassword: meeting.password,
+      });
+
+      res.json(updatedCase);
+    } catch (error) {
+      console.error("Error creating Zoom meeting:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to create Zoom meeting" });
+    }
+  });
+
+  app.delete('/api/cases/:caseId/zoom-meeting', isAuthenticated, async (req: any, res) => {
+    try {
+      const { caseId } = req.params;
+      const userId = req.user.claims.sub;
+
+      // Get the case to verify ownership
+      const caseData = await storage.getCase(caseId);
+      if (!caseData) {
+        return res.status(404).json({ message: "Case not found" });
+      }
+
+      if (caseData.mediatorId !== userId) {
+        return res.status(403).json({ message: "Not authorized to delete meeting for this case" });
+      }
+
+      if (!caseData.zoomMeetingId) {
+        return res.status(400).json({ message: "No Zoom meeting exists for this case" });
+      }
+
+      // Import Zoom service
+      const { zoomService } = await import('./zoomService.js');
+
+      // Delete Zoom meeting
+      await zoomService.deleteMeeting(caseData.zoomMeetingId);
+
+      // Update case to remove Zoom meeting details
+      const updatedCase = await storage.updateCase(caseId, {
+        zoomMeetingId: null,
+        zoomMeetingLink: null,
+        zoomMeetingPassword: null,
+      });
+
+      res.json(updatedCase);
+    } catch (error) {
+      console.error("Error deleting Zoom meeting:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to delete Zoom meeting" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

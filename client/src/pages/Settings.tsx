@@ -452,9 +452,11 @@ export default function Settings() {
               {/* Template Editor */}
               <Card className="lg:col-span-2">
                 <CardHeader>
-                  <CardTitle>{selectedTemplate ? 'Edit Template' : 'New Template'}</CardTitle>
+                  <CardTitle>
+                    {selectedTemplate ? 'Edit Template' : 'Create New Template'}
+                  </CardTitle>
                   <CardDescription>
-                    Create and customize email templates for your communications
+                    Available variables: {'{caseNumber}'}, {'{mediatorName}'}, {'{mediationType}'}, {'{mediationDate}'}, {'{mediationTime}'}, {'{recipientName}'}, {'{disputeType}'}, {'{disputeAmount}'}, {'{zoomLink}'}, {'{zoomPassword}'}, {'{applicant_1_name}'}, {'{applicant_1_contact}'}, {'{applicant_1_email}'}, {'{applicant_1_phone}'}, {'{applicant_1_lawyer}'}, {'{applicant_1_lawyer_firm}'}, {'{applicant_1_lawyer_email}'}, {'{applicant_1_lawyer_phone}'}, {'{respondent_1_name}'}, {'{respondent_1_contact}'}, {'{respondent_1_email}'}, {'{respondent_1_phone}'}, {'{respondent_1_lawyer}'}, {'{respondent_1_lawyer_firm}'}, {'{respondent_1_lawyer_email}'}, {'{respondent_1_lawyer_phone}'} (and _2, _3, etc. for multiple parties)
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
