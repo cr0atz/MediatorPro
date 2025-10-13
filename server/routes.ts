@@ -904,6 +904,209 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Calendar integration routes
+  app.get('/api/calendar/events', isAuthenticated, async (req: any, res) => {
+    try {
+      const { googleCalendarService } = await import('./googleCalendarService.js');
+      const events = await googleCalendarService.listUpcomingEvents(20);
+      res.json(events);
+    } catch (error) {
+      console.error("Error fetching calendar events:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch calendar events" 
+      });
+    }
+  });
+
+  app.post('/api/calendar/sync-cases', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { googleCalendarService } = await import('./googleCalendarService.js');
+      
+      // Get all cases with mediation dates
+      const cases = await storage.getAllCases(userId);
+      const casesWithDates = cases.filter(c => c.mediationDate);
+      
+      const results = [];
+      
+      for (const caseData of casesWithDates) {
+        try {
+          const parties = await storage.getPartiesByCase(caseData.id);
+          const applicants = parties.filter(p => p.partyType === 'applicant');
+          const respondents = parties.filter(p => p.partyType === 'respondent');
+          
+          const attendees = [
+            ...applicants.map(p => ({ 
+              email: p.primaryContactEmail || '', 
+              displayName: p.entityName 
+            })),
+            ...respondents.map(p => ({ 
+              email: p.primaryContactEmail || '', 
+              displayName: p.entityName 
+            }))
+          ].filter(a => a.email);
+
+          const startDateTime = new Date(caseData.mediationDate!);
+          const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000); // 2 hours
+
+          const description = [
+            `Case Number: ${caseData.caseNumber}`,
+            caseData.mediationType ? `Type: ${caseData.mediationType}` : '',
+            caseData.premises ? `Location: ${caseData.premises}` : '',
+            caseData.disputeBackground ? `\nBackground:\n${caseData.disputeBackground}` : '',
+          ].filter(Boolean).join('\n');
+
+          if (caseData.calendarEventId) {
+            // Update existing event
+            await googleCalendarService.updateEvent(caseData.calendarEventId, {
+              summary: `Mediation: ${caseData.caseNumber}`,
+              description,
+              location: caseData.premises || '',
+              startDateTime: startDateTime.toISOString(),
+              endDateTime: endDateTime.toISOString(),
+              attendees,
+            });
+            results.push({ caseId: caseData.id, action: 'updated' });
+          } else {
+            // Create new event
+            const eventId = await googleCalendarService.createEvent({
+              summary: `Mediation: ${caseData.caseNumber}`,
+              description,
+              location: caseData.premises || '',
+              startDateTime: startDateTime.toISOString(),
+              endDateTime: endDateTime.toISOString(),
+              attendees,
+            });
+
+            // Update case with calendar event ID
+            await storage.updateCase(caseData.id, { calendarEventId: eventId });
+            results.push({ caseId: caseData.id, action: 'created', eventId });
+          }
+        } catch (error) {
+          console.error(`Error syncing case ${caseData.id}:`, error);
+          results.push({ 
+            caseId: caseData.id, 
+            action: 'failed', 
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          });
+        }
+      }
+
+      res.json({ synced: results.length, results });
+    } catch (error) {
+      console.error("Error syncing cases to calendar:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to sync cases" 
+      });
+    }
+  });
+
+  app.post('/api/cases/:caseId/sync-to-calendar', isAuthenticated, async (req: any, res) => {
+    try {
+      const { caseId } = req.params;
+      const userId = req.user.claims.sub;
+      const { googleCalendarService } = await import('./googleCalendarService.js');
+
+      const caseData = await storage.getCase(caseId);
+      if (!caseData) {
+        return res.status(404).json({ message: "Case not found" });
+      }
+
+      if (caseData.mediatorId !== userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      if (!caseData.mediationDate) {
+        return res.status(400).json({ message: "Case has no mediation date set" });
+      }
+
+      const parties = await storage.getPartiesByCase(caseId);
+      const applicants = parties.filter(p => p.partyType === 'applicant');
+      const respondents = parties.filter(p => p.partyType === 'respondent');
+      
+      const attendees = [
+        ...applicants.map(p => ({ 
+          email: p.primaryContactEmail || '', 
+          displayName: p.entityName 
+        })),
+        ...respondents.map(p => ({ 
+          email: p.primaryContactEmail || '', 
+          displayName: p.entityName 
+        }))
+      ].filter(a => a.email);
+
+      const startDateTime = new Date(caseData.mediationDate);
+      const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
+
+      const description = [
+        `Case Number: ${caseData.caseNumber}`,
+        caseData.mediationType ? `Type: ${caseData.mediationType}` : '',
+        caseData.premises ? `Location: ${caseData.premises}` : '',
+        caseData.disputeBackground ? `\nBackground:\n${caseData.disputeBackground}` : '',
+      ].filter(Boolean).join('\n');
+
+      if (caseData.calendarEventId) {
+        await googleCalendarService.updateEvent(caseData.calendarEventId, {
+          summary: `Mediation: ${caseData.caseNumber}`,
+          description,
+          location: caseData.premises || '',
+          startDateTime: startDateTime.toISOString(),
+          endDateTime: endDateTime.toISOString(),
+          attendees,
+        });
+        res.json({ action: 'updated', eventId: caseData.calendarEventId });
+      } else {
+        const eventId = await googleCalendarService.createEvent({
+          summary: `Mediation: ${caseData.caseNumber}`,
+          description,
+          location: caseData.premises || '',
+          startDateTime: startDateTime.toISOString(),
+          endDateTime: endDateTime.toISOString(),
+          attendees,
+        });
+
+        const updatedCase = await storage.updateCase(caseId, { calendarEventId: eventId });
+        res.json({ action: 'created', eventId, case: updatedCase });
+      }
+    } catch (error) {
+      console.error("Error syncing case to calendar:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to sync case" 
+      });
+    }
+  });
+
+  app.delete('/api/cases/:caseId/calendar-event', isAuthenticated, async (req: any, res) => {
+    try {
+      const { caseId } = req.params;
+      const userId = req.user.claims.sub;
+      const { googleCalendarService } = await import('./googleCalendarService.js');
+
+      const caseData = await storage.getCase(caseId);
+      if (!caseData) {
+        return res.status(404).json({ message: "Case not found" });
+      }
+
+      if (caseData.mediatorId !== userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      if (!caseData.calendarEventId) {
+        return res.status(400).json({ message: "No calendar event exists for this case" });
+      }
+
+      await googleCalendarService.deleteEvent(caseData.calendarEventId);
+      const updatedCase = await storage.updateCase(caseId, { calendarEventId: null });
+      
+      res.json(updatedCase);
+    } catch (error) {
+      console.error("Error deleting calendar event:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to delete calendar event" 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
