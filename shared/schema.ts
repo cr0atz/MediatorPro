@@ -50,6 +50,7 @@ export const cases = pgTable("cases", {
   zoomMeetingId: text("zoom_meeting_id"),
   zoomMeetingLink: text("zoom_meeting_link"),
   zoomMeetingPassword: text("zoom_meeting_password"),
+  calendarEventId: text("calendar_event_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
