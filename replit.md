@@ -2,246 +2,43 @@
 
 ## Overview
 
-Mediator Pro is a comprehensive case management system designed for legal mediators. The platform automates case intake through AI-powered document analysis, manages mediation sessions, tracks parties and communications, and provides intelligent assistance throughout the mediation process. Built as a full-stack web application, it combines document processing, case tracking, and automated communication tools into a unified workflow.
+Mediator Pro is an AI-powered case management platform for legal mediators. It streamlines the mediation process by automating case intake through AI document analysis, managing sessions, tracking parties and communications, and providing intelligent assistance. The platform integrates document processing, case tracking, and automated communication to create a unified workflow, aiming to enhance efficiency and organization for mediation professionals.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes
-
-**October 13, 2025 - Session 9**
-- Migrated Google Calendar integration from Replit connector to user's own OAuth2 credentials:
-  - Extended calendarSettings schema with OAuth token storage (accessToken, refreshToken, scope, expiryDate)
-  - Created googleCalendarOAuthService.ts with OAuth2Client from googleapis library for authenticated operations
-  - Implemented OAuth flow with CSRF protection: GET /api/calendar/oauth/init and /api/calendar/oauth/callback
-  - Added "Connect to Google Calendar" button in Settings with connection status indicator
-  - Helper functions getUserCalendarService() and saveRefreshedTokens() for centralized token management
-  - Updated all calendar routes to use new OAuth service instead of Replit connector
-  - Fixed timezone bug: Removed forced UTC timezone from event creation to prevent time shifting
-  - Implemented react-big-calendar for month view (replaced list view)
-  - Fixed require() error by using ES6 import for date-fns locale
-  - Calendar now uses user's own Google API credentials from Settings for complete ownership
-- Architect-approved as production-ready
-
-**October 13, 2025 - Session 8**
-- Implemented complete Google Calendar integration with OAuth and two-way sync:
-  - Created googleCalendarService.ts using Replit Google Calendar connector for OAuth
-  - Added calendarEventId field to cases schema for event linkage tracking
-  - Built Calendar page displaying upcoming Google Calendar events with full details (summary, date, location, attendees)
-  - API routes: GET /api/calendar/events, POST /api/calendar/sync-cases, POST /api/cases/:caseId/sync-to-calendar, DELETE /api/cases/:caseId/calendar-event, POST /api/calendar/create-case-from-event
-  - "Sync to Calendar" button in CaseDetail Quick Actions for individual case sync
-  - "Sync All Cases to Calendar" button for bulk sync of all cases with mediation dates
-  - Two-way sync: Create cases from calendar events via "Create Case from Event" dialog
-  - Fixed "Event type cannot be changed" error using delete-and-recreate strategy for updates
-  - Automatically extracts attendees from parties when creating calendar events
-  - Calendar events include case details in description (case number, background, location)
-- End-to-end testing confirmed all sync operations work correctly with no errors
-- Architect-approved as production-ready
-
-**October 13, 2025 - Session 7**
-- Implemented comprehensive credentials management for Zoom and Google Calendar integrations:
-  - Added Zoom Credentials tab in Settings page with Account ID, Client ID, and Client Secret fields
-  - Added Google Calendar tab in Settings page with Client ID and Client Secret fields
-  - Created zoomSettings and calendarSettings database tables with unique user constraints
-  - Backend routes (GET/POST) for both /api/zoom-settings and /api/calendar-settings
-  - Zod schema validation prevents malformed data and client tampering
-  - Server-injected userId ensures credentials belong to authenticated user
-  - Proper HTTP status codes: 400 for validation errors, 500 for server errors
-  - Forms repopulate fetched credentials via useEffect hooks (same pattern as SMTP settings)
-  - Query cache invalidation ensures UI stays synchronized
-  - Success/error toast notifications for user feedback
-- All features tested end-to-end and architect-approved as production-ready
-
-**October 13, 2025 - Session 6**
-- Implemented complete Zoom video conferencing integration with OAuth and meeting management:
-  - Created ZoomService with server-to-server OAuth authentication using secure credentials stored in Replit Secrets
-  - Token caching with 10-minute expiry padding to prevent edge-case failures
-  - Meeting lifecycle: Create meetings on-demand with secure random passwords, delete when needed
-  - Added zoomMeetingId, zoomMeetingLink, zoomMeetingPassword fields to cases schema
-  - API routes: POST/DELETE /api/cases/:caseId/zoom-meeting with proper authorization
-  - UI: "Start Zoom Session" button creates meeting, changes to "Join Zoom Session" with link in new tab
-  - Loading states, error handling, and query cache invalidation
-- Expanded email template variable system with party-specific placeholders:
-  - Added Zoom variables: {zoomLink}, {zoomPassword}
-  - Added indexed party variables: {applicant_1_name}, {applicant_1_contact}, {applicant_1_email}, {applicant_1_phone}
-  - Added lawyer variables: {applicant_1_lawyer}, {applicant_1_lawyer_firm}, {applicant_1_lawyer_email}, {applicant_1_lawyer_phone}
-  - Respondent variables: {respondent_1_name}, {respondent_1_contact}, etc. (supports _1, _2, _3 for multiple parties)
-  - Final pass cleanup: Any unreplaced party placeholders converted to bracketed fallbacks like [Applicant 1 Name]
-  - Updated Settings page to document all available template variables
-- Fixed party placeholder bug where missing data left raw tokens instead of bracketed fallbacks
-- End-to-end testing confirmed Zoom meeting creation and all email placeholders work correctly
-- Architect-approved as production-ready
-
-**October 12, 2025 - Session 5**
-- Fixed email template synchronization between Settings and Send Email dialog:
-  - EmailModal component now uses database templates from /api/email/templates endpoint instead of hardcoded templates
-  - Custom Email option always available alongside database templates
-  - Implemented comprehensive placeholder replacement system via replacePlaceholders() function
-  - All supported placeholders: {caseNumber}, {mediatorName}, {mediationType}, {mediationDate}, {mediationTime}, {recipientName}, {disputeType}, {disputeAmount}
-  - Missing data shows user-friendly bracket format like [Mediator Name] instead of empty strings or raw {tokens}
-  - Added CaseWithDetails TypeScript type for type-safe case queries with parties and documents
-  - Fixed getRecipients function name bug that caused runtime errors
-- End-to-end testing confirmed all placeholders replaced correctly with no runtime errors
-- Architect-approved as production-ready
-
-**October 12, 2025 - Session 4**
-- Implemented complete SMTP configuration and email template management system:
-  - Added Settings page accessible via user dropdown menu (changed name display to "Danny Jovica")
-  - SMTP Configuration tab: Form for host, port, username, password, from email/name with save and test functionality
-  - Email Templates tab: Full CRUD interface for creating, editing, and deleting email templates with categories
-  - Added smtpSettings database table with user-specific SMTP configurations
-  - Integrated existing emailTemplates system with new UI
-- Fixed React render loop bug in Settings component by moving form.reset() to useEffect
-- Updated auth upsert to use email as conflict target (handles legacy UUID-based users, but may have edge case with email changes)
-- All Settings features tested end-to-end and fully functional
-
-**October 12, 2025 - Session 3**
-- Migrated entire icon system from Font Awesome to Lucide React to resolve Brave browser blocking
-  - Removed Font Awesome CDN link from index.html (privacy and browser compatibility fix)
-  - Replaced all icon references across DocumentManager, DocumentViewer, and CaseDetail components
-  - All icons now render correctly across all browsers including Brave
-- Restructured party layout with dedicated columns for better organization:
-  - Left column: All applicants grouped together with "Applicant" header and "Primary Party" badges
-  - Right column: All respondents grouped together with "Respondent" header and "Opposing Party" badges
-  - Improved visual hierarchy and clarity for multi-party cases
-- All changes architect-approved and production-ready
-
-**October 12, 2025 - Session 2**
-- Fixed party display bug: Changed from `.find()` to `.filter()` to display ALL parties (not just first one)
-  - Multiple applicants and respondents now show as separate cards
-  - Tested with 3 respondents + 1 applicant successfully
-- Implemented comprehensive document viewer system with modal interface:
-  - PDF viewer: Direct display using iframe
-  - DOCX viewer: Converts to HTML using mammoth.js library
-  - XLSX viewer: Renders as HTML tables using xlsx library
-  - Unsupported file fallback: Helpful messages for legacy .doc and .xls files
-  - Download button available in all viewer modes
-  - Custom styling for Word and Excel documents with proper theming
-- All features tested end-to-end and architect-approved
-
-**October 12, 2025 - Session 1**
-- Added "Send to Case Notes" button in AI Analysis - saves AI responses to case notes with one click
-- Added "Re-Parse" button for documents - reruns AI extraction when OCR misses details (e.g., landlord contact information)
-- Added manual "Add Party" dialog with complete form - handles parties missed by AI extraction
-  - Form includes: entity name, party type, primary contact details, legal representative information
-  - Properly validates and persists to database
-  - Updates UI immediately via cache invalidation
-- Fixed auth bug: Changed upsert conflict target from email to id to prevent duplicate key errors on repeat OIDC logins
-- All features tested end-to-end and architect-approved for production use
-
 ## System Architecture
 
 ### Frontend Architecture
-
-**Framework & Build System**
-- React 18 with TypeScript for type-safe component development
-- Vite as the build tool and development server for fast hot module replacement
-- Wouter for lightweight client-side routing without the overhead of React Router
-- Single-page application (SPA) architecture with code splitting
-
-**UI Component System**
-- Shadcn/ui components built on Radix UI primitives for accessible, unstyled components
-- Tailwind CSS for utility-first styling with CSS variables for theming
-- Custom design system using "New York" style variant from Shadcn
-- Support for both light and dark themes through CSS custom properties
-
-**State Management**
-- TanStack Query (React Query) for server state management and caching
-- Custom hooks for authentication state (`useAuth`) and toast notifications
-- React Hook Form with Zod resolvers for form validation
-- Local component state with React hooks
-
-**Key Design Patterns**
-- Component composition with Radix UI's compound component pattern
-- Custom utility functions for class name merging (cn utility)
-- Path aliasing for clean imports (@/ for client, @shared for shared code)
-- Separation of UI components from business logic
+The frontend is built with React 18 and TypeScript, utilizing Vite for fast development. It's a Single-Page Application (SPA) with Wouter for routing. UI components are built using Shadcn/ui (based on Radix UI) and styled with Tailwind CSS, supporting both light and dark themes. TanStack Query manages server state and caching, while React Hook Form with Zod handles form validation.
 
 ### Backend Architecture
-
-**Server Framework**
-- Express.js running on Node.js with TypeScript
-- ESM modules for modern JavaScript module support
-- RESTful API design with JSON request/response format
-- Custom middleware for request logging and error handling
-
-**Authentication & Sessions**
-- Replit Authentication using OpenID Connect (OIDC) protocol
-- Passport.js strategy for authentication flow
-- PostgreSQL-backed session storage using connect-pg-simple
-- HTTP-only secure cookies for session management
-- Session TTL of 7 days with automatic refresh
-
-**API Design Philosophy**
-- Route handlers organized by feature domain (cases, documents, AI, email)
-- Middleware-based authentication with `isAuthenticated` guard
-- Consistent error responses with appropriate HTTP status codes
-- File upload handling with Multer middleware (50MB limit for mediation documents)
-- Support for PDF, DOC, and DOCX file types
+The backend uses Express.js with Node.js and TypeScript, designed with RESTful APIs. Authentication is handled via Replit Authentication (OpenID Connect) and Passport.js, with PostgreSQL-backed session storage. API routes are organized by feature domain, include middleware-based authentication, and provide consistent error responses. File uploads are managed by Multer, supporting PDF, DOC, and DOCX formats.
 
 ### Data Storage Solutions
+The primary database is Neon PostgreSQL, a serverless solution, with Drizzle ORM for type-safe queries. The schema includes Users, Cases, Parties, Documents, Case Notes, AI Analyses, and Sessions, with clear relationships. Google Cloud Storage is used for document object storage, integrated with Replit's sidecar service for credentials and supporting custom ACLs and signed URLs.
 
-**Primary Database**
-- Neon PostgreSQL serverless database for scalable cloud storage
-- Drizzle ORM for type-safe database queries and schema management
-- Connection pooling via @neondatabase/serverless with WebSocket support
-- Database schema co-located with application in shared/schema.ts
+### UI/UX Decisions
+The platform features a custom design system based on Shadcn's "New York" style variant, ensuring accessibility and responsiveness. Icons are provided by Lucide React for consistent visual elements. The layout for parties is structured with dedicated columns for applicants and respondents, enhancing clarity for multi-party cases. A comprehensive document viewer system supports PDF, DOCX (converted to HTML via mammoth.js), and XLSX (rendered as HTML tables via xlsx library), with a fallback for unsupported formats.
 
-**Database Schema Design**
-- **Users**: Authentication and profile information (Replit Auth integration)
-- **Cases**: Core case metadata (case number, mediation details, status, dispute information)
-- **Parties**: Involved parties with contact information and legal representation
-- **Documents**: File metadata with cloud storage references
-- **Case Notes**: Timestamped notes for case management
-- **AI Analyses**: Cached AI-generated insights and extracted data
-- **Sessions**: User session data for authentication
+### Technical Implementations
+Key technical implementations include:
+- **Email System**: SMTP configuration and a full CRUD interface for managing email templates. A comprehensive placeholder replacement system allows for dynamic data injection into emails.
+- **Zoom Integration**: Secure server-to-server OAuth for Zoom, enabling on-demand meeting creation and deletion, with meeting links and passwords integrated into case data and email templates.
+- **Google Calendar Integration**: OAuth-based integration for two-way synchronization of events, allowing cases to be synced to calendars and new cases to be created from calendar events. It stores OAuth tokens securely and uses the user's own Google API credentials.
+- **AI Analysis**: Integration with OpenAI API for document analysis, OCR, entity extraction, and AI-powered Q&A, with "Send to Case Notes" and "Re-Parse" functionalities.
+- **Party Management**: Manual "Add Party" dialog for comprehensive input of party and legal representative details, complementing AI extraction.
+- **Icon System**: Migration from Font Awesome to Lucide React for better browser compatibility.
 
-**Relationships**
-- One-to-many: Cases to Parties, Cases to Documents, Cases to Notes
-- Foreign key constraints via mediatorId linking to user records
-- Array fields for flexible data (issues for discussion)
+## External Dependencies
 
-**Object Storage**
-- Google Cloud Storage integration for document storage
-- Replit's sidecar service for credential management
-- Custom ACL (Access Control List) system for fine-grained permissions
-- Support for signed URLs and secure file uploads via Uppy
-
-### External Dependencies
-
-**AI & Machine Learning**
-- OpenAI API (GPT-5) for document analysis and natural language processing
-- OCR capabilities for extracting structured data from uploaded mediation documents
-- Entity extraction for automatically populating case fields (parties, dates, issues)
-- AI-powered Q&A system for querying case documents
-
-**Email Services**
-- SendGrid for transactional email delivery
-- Template-based email system with dynamic data injection
-- Support for mediation confirmations, document requests, and party notifications
-- HTML and plain-text email formats
-
-**File Management**
-- Uppy file upload library with AWS S3 compatibility
-- Google Cloud Storage for scalable object storage
-- Support for multipart uploads and progress tracking
-- File type validation and size restrictions
-
-**Cloud Infrastructure**
-- Replit deployment platform with native integrations
-- Environment-based configuration (DATABASE_URL, API keys)
-- WebSocket support for real-time features via Neon serverless
-- Development tooling: Replit cartographer and dev banner plugins
-
-**Development & Build Tools**
-- TypeScript for static type checking across the stack
-- ESBuild for fast production bundling of server code
-- Drizzle Kit for database migrations and schema management
-- PostCSS with Autoprefixer for CSS processing
-
-**Third-Party UI Libraries**
-- React Hook Form for performant form handling
-- Radix UI comprehensive component primitives (30+ components)
-- Lucide React for consistent iconography
-- TailwindCSS for utility-first styling
+- **AI & Machine Learning**: OpenAI API (GPT-5) for document analysis, OCR, entity extraction, and AI-powered Q&A.
+- **Email Services**: SendGrid for transactional email delivery.
+- **Cloud Storage**: Google Cloud Storage for scalable object storage.
+- **Database**: Neon PostgreSQL for the primary serverless database.
+- **File Upload**: Uppy file upload library.
+- **Development & Deployment**: Replit deployment platform, TypeScript, Vite, Drizzle Kit, PostCSS.
+- **UI Libraries**: Radix UI, Shadcn/ui, Tailwind CSS, Lucide React, React Hook Form, Wouter.
+- **Document Processing**: Mammoth.js (for DOCX to HTML conversion), XLSX library (for Excel rendering).
+```
