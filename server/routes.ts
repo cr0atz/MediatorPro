@@ -7,7 +7,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { aiService } from "./aiService";
 import { emailService } from "./emailService";
-import { insertCaseSchema, insertPartySchema, insertDocumentSchema, insertCaseNoteSchema, insertAiAnalysisSchema, insertEmailTemplateSchema, insertSmtpSettingsSchema } from "@shared/schema";
+import { insertCaseSchema, insertPartySchema, insertDocumentSchema, insertCaseNoteSchema, insertAiAnalysisSchema, insertEmailTemplateSchema, insertSmtpSettingsSchema, insertZoomSettingsSchema, insertCalendarSettingsSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -733,6 +733,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error testing SMTP connection:", error);
       res.status(500).json({ message: "Failed to test SMTP connection" });
+    }
+  });
+
+  // Zoom settings routes
+  app.get('/api/zoom-settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settings = await storage.getZoomSettings(userId);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching Zoom settings:", error);
+      res.status(500).json({ message: "Failed to fetch Zoom settings" });
+    }
+  });
+
+  app.post('/api/zoom-settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const existingSettings = await storage.getZoomSettings(userId);
+      
+      // Validate incoming data
+      const settingsData = insertZoomSettingsSchema.parse({
+        ...req.body,
+        userId,
+      });
+      
+      if (existingSettings) {
+        const settings = await storage.updateZoomSettings(userId, settingsData);
+        res.json(settings);
+      } else {
+        const settings = await storage.createZoomSettings(settingsData);
+        res.json(settings);
+      }
+    } catch (error) {
+      console.error("Error saving Zoom settings:", error);
+      // Return 400 for validation errors, 500 for server errors
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid Zoom settings data", error: error.message });
+      }
+      res.status(500).json({ message: "Failed to save Zoom settings" });
+    }
+  });
+
+  // Calendar settings routes
+  app.get('/api/calendar-settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settings = await storage.getCalendarSettings(userId);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching Calendar settings:", error);
+      res.status(500).json({ message: "Failed to fetch Calendar settings" });
+    }
+  });
+
+  app.post('/api/calendar-settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const existingSettings = await storage.getCalendarSettings(userId);
+      
+      // Validate incoming data
+      const settingsData = insertCalendarSettingsSchema.parse({
+        ...req.body,
+        userId,
+      });
+      
+      if (existingSettings) {
+        const settings = await storage.updateCalendarSettings(userId, settingsData);
+        res.json(settings);
+      } else {
+        const settings = await storage.createCalendarSettings(settingsData);
+        res.json(settings);
+      }
+    } catch (error) {
+      console.error("Error saving Calendar settings:", error);
+      // Return 400 for validation errors, 500 for server errors
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid Calendar settings data", error: error.message });
+      }
+      res.status(500).json({ message: "Failed to save Calendar settings" });
     }
   });
 

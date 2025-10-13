@@ -9,11 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { SmtpSettings, EmailTemplate, InsertSmtpSettings, InsertEmailTemplate } from "@shared/schema";
-import { Server, Mail, Plus, Trash2, Save, TestTube } from "lucide-react";
+import { SmtpSettings, EmailTemplate, InsertSmtpSettings, InsertEmailTemplate, ZoomSettings, CalendarSettings, InsertZoomSettings, InsertCalendarSettings } from "@shared/schema";
+import { Server, Mail, Plus, Trash2, Save, TestTube, Video, Calendar } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertSmtpSettingsSchema, insertEmailTemplateSchema } from "@shared/schema";
+import { insertSmtpSettingsSchema, insertEmailTemplateSchema, insertZoomSettingsSchema, insertCalendarSettingsSchema } from "@shared/schema";
 import {
   Form,
   FormControl,
@@ -57,11 +57,21 @@ export default function Settings() {
     queryKey: ['/api/email/templates'],
   });
 
+  // Fetch Zoom settings
+  const { data: zoomSettings, isLoading: isLoadingZoom } = useQuery<ZoomSettings>({
+    queryKey: ['/api/zoom-settings'],
+  });
+
+  // Fetch Calendar settings
+  const { data: calendarSettings, isLoading: isLoadingCalendar } = useQuery<CalendarSettings>({
+    queryKey: ['/api/calendar-settings'],
+  });
+
   // SMTP form
   const smtpForm = useForm<InsertSmtpSettings>({
     resolver: zodResolver(insertSmtpSettingsSchema),
     defaultValues: smtpSettings || {
-      userId: user?.id || '',
+      userId: (user as any)?.id || '',
       host: '',
       port: 587,
       secure: true,
@@ -76,11 +86,32 @@ export default function Settings() {
   const templateForm = useForm<InsertEmailTemplate>({
     resolver: zodResolver(insertEmailTemplateSchema),
     defaultValues: {
-      userId: user?.id || '',
+      userId: (user as any)?.id || '',
       name: '',
       subject: '',
       body: '',
       category: '',
+    },
+  });
+
+  // Zoom settings form
+  const zoomForm = useForm<InsertZoomSettings>({
+    resolver: zodResolver(insertZoomSettingsSchema),
+    defaultValues: zoomSettings || {
+      userId: (user as any)?.id || '',
+      accountId: '',
+      clientId: '',
+      clientSecret: '',
+    },
+  });
+
+  // Calendar settings form
+  const calendarForm = useForm<InsertCalendarSettings>({
+    resolver: zodResolver(insertCalendarSettingsSchema),
+    defaultValues: calendarSettings || {
+      userId: (user as any)?.id || '',
+      clientId: '',
+      clientSecret: '',
     },
   });
 
@@ -178,6 +209,48 @@ export default function Settings() {
     },
   });
 
+  // Update Zoom settings mutation
+  const zoomMutation = useMutation({
+    mutationFn: async (data: InsertZoomSettings) => {
+      return apiRequest('POST', '/api/zoom-settings', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/zoom-settings'] });
+      toast({
+        title: "Zoom Settings Saved",
+        description: "Your Zoom credentials have been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save Zoom settings. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update Calendar settings mutation
+  const calendarMutation = useMutation({
+    mutationFn: async (data: InsertCalendarSettings) => {
+      return apiRequest('POST', '/api/calendar-settings', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/calendar-settings'] });
+      toast({
+        title: "Calendar Settings Saved",
+        description: "Your Google Calendar credentials have been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save Calendar settings. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSmtpSubmit = (data: InsertSmtpSettings) => {
     smtpMutation.mutate(data);
   };
@@ -186,12 +259,32 @@ export default function Settings() {
     templateMutation.mutate(data);
   };
 
+  const onZoomSubmit = (data: InsertZoomSettings) => {
+    zoomMutation.mutate(data);
+  };
+
+  const onCalendarSubmit = (data: InsertCalendarSettings) => {
+    calendarMutation.mutate(data);
+  };
+
   // Update form when SMTP settings are loaded
   useEffect(() => {
     if (smtpSettings && !smtpForm.formState.isDirty) {
       smtpForm.reset(smtpSettings);
     }
   }, [smtpSettings, smtpForm]);
+
+  useEffect(() => {
+    if (zoomSettings && !zoomForm.formState.isDirty) {
+      zoomForm.reset(zoomSettings);
+    }
+  }, [zoomSettings, zoomForm]);
+
+  useEffect(() => {
+    if (calendarSettings && !calendarForm.formState.isDirty) {
+      calendarForm.reset(calendarSettings);
+    }
+  }, [calendarSettings, calendarForm]);
 
   const handleEditTemplate = (template: EmailTemplate) => {
     setSelectedTemplate(template);
@@ -207,7 +300,7 @@ export default function Settings() {
   const handleNewTemplate = () => {
     setSelectedTemplate(null);
     templateForm.reset({
-      userId: user?.id || '',
+      userId: (user as any)?.id || '',
       name: '',
       subject: '',
       body: '',
@@ -228,6 +321,14 @@ export default function Settings() {
             <TabsTrigger value="smtp" className="data-[state=active]:bg-background" data-testid="tab-smtp">
               <Server className="w-4 h-4 mr-2" />
               SMTP Configuration
+            </TabsTrigger>
+            <TabsTrigger value="zoom" className="data-[state=active]:bg-background" data-testid="tab-zoom">
+              <Video className="w-4 h-4 mr-2" />
+              Zoom Credentials
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="data-[state=active]:bg-background" data-testid="tab-calendar">
+              <Calendar className="w-4 h-4 mr-2" />
+              Google Calendar
             </TabsTrigger>
             <TabsTrigger value="templates" className="data-[state=active]:bg-background" data-testid="tab-templates">
               <Mail className="w-4 h-4 mr-2" />
@@ -383,6 +484,151 @@ export default function Settings() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="zoom" className="pt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Video className="w-5 h-5 mr-2" />
+                  Zoom Credentials
+                </CardTitle>
+                <CardDescription>
+                  Configure your Zoom API credentials for video conferencing integration
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingZoom ? (
+                  <div className="space-y-4">
+                    <div className="h-10 bg-muted animate-pulse rounded-md"></div>
+                    <div className="h-10 bg-muted animate-pulse rounded-md"></div>
+                    <div className="h-10 bg-muted animate-pulse rounded-md"></div>
+                  </div>
+                ) : (
+                  <Form {...zoomForm}>
+                    <form onSubmit={zoomForm.handleSubmit(onZoomSubmit)} className="space-y-6">
+                      <FormField
+                        control={zoomForm.control}
+                        name="accountId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Account ID</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter Zoom Account ID" {...field} data-testid="input-zoom-account-id" />
+                            </FormControl>
+                            <FormDescription>Your Zoom API Account ID</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={zoomForm.control}
+                        name="clientId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Client ID</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter Zoom Client ID" {...field} data-testid="input-zoom-client-id" />
+                            </FormControl>
+                            <FormDescription>Your Zoom API Client ID</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={zoomForm.control}
+                        name="clientSecret"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Client Secret</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="••••••••" {...field} data-testid="input-zoom-client-secret" />
+                            </FormControl>
+                            <FormDescription>Your Zoom API Client Secret</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="flex items-center gap-4 pt-4 border-t">
+                        <Button 
+                          type="submit" 
+                          disabled={zoomMutation.isPending}
+                          data-testid="button-save-zoom"
+                        >
+                          <Save className="w-4 h-4 mr-2" />
+                          {zoomMutation.isPending ? 'Saving...' : 'Save Credentials'}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="calendar" className="pt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Calendar className="w-5 h-5 mr-2" />
+                  Google Calendar Credentials
+                </CardTitle>
+                <CardDescription>
+                  Configure your Google Calendar API credentials for calendar integration
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingCalendar ? (
+                  <div className="space-y-4">
+                    <div className="h-10 bg-muted animate-pulse rounded-md"></div>
+                    <div className="h-10 bg-muted animate-pulse rounded-md"></div>
+                  </div>
+                ) : (
+                  <Form {...calendarForm}>
+                    <form onSubmit={calendarForm.handleSubmit(onCalendarSubmit)} className="space-y-6">
+                      <FormField
+                        control={calendarForm.control}
+                        name="clientId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Client ID</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter Google Calendar Client ID" {...field} data-testid="input-calendar-client-id" />
+                            </FormControl>
+                            <FormDescription>Your Google Calendar API Client ID</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={calendarForm.control}
+                        name="clientSecret"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Client Secret</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="••••••••" {...field} data-testid="input-calendar-client-secret" />
+                            </FormControl>
+                            <FormDescription>Your Google Calendar API Client Secret</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="flex items-center gap-4 pt-4 border-t">
+                        <Button 
+                          type="submit" 
+                          disabled={calendarMutation.isPending}
+                          data-testid="button-save-calendar"
+                        >
+                          <Save className="w-4 h-4 mr-2" />
+                          {calendarMutation.isPending ? 'Saving...' : 'Save Credentials'}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="templates" className="pt-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Template List */}
@@ -483,7 +729,7 @@ export default function Settings() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Category</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value || undefined}>
                               <FormControl>
                                 <SelectTrigger data-testid="select-template-category">
                                   <SelectValue placeholder="Select a category" />

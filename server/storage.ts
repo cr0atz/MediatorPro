@@ -7,6 +7,8 @@ import {
   aiAnalyses,
   emailTemplates,
   smtpSettings,
+  zoomSettings,
+  calendarSettings,
   type User,
   type UpsertUser,
   type Case,
@@ -16,6 +18,8 @@ import {
   type AiAnalysis,
   type EmailTemplate,
   type SmtpSettings,
+  type ZoomSettings,
+  type CalendarSettings,
   type InsertCase,
   type InsertParty,
   type InsertDocument,
@@ -23,6 +27,8 @@ import {
   type InsertAiAnalysis,
   type InsertEmailTemplate,
   type InsertSmtpSettings,
+  type InsertZoomSettings,
+  type InsertCalendarSettings,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -69,6 +75,16 @@ export interface IStorage {
   getSmtpSettings(userId: string): Promise<SmtpSettings | undefined>;
   createSmtpSettings(settingsData: InsertSmtpSettings): Promise<SmtpSettings>;
   updateSmtpSettings(userId: string, settingsData: Partial<InsertSmtpSettings>): Promise<SmtpSettings>;
+  
+  // Zoom Settings operations
+  getZoomSettings(userId: string): Promise<ZoomSettings | undefined>;
+  createZoomSettings(settingsData: InsertZoomSettings): Promise<ZoomSettings>;
+  updateZoomSettings(userId: string, settingsData: Partial<InsertZoomSettings>): Promise<ZoomSettings>;
+  
+  // Calendar Settings operations
+  getCalendarSettings(userId: string): Promise<CalendarSettings | undefined>;
+  createCalendarSettings(settingsData: InsertCalendarSettings): Promise<CalendarSettings>;
+  updateCalendarSettings(userId: string, settingsData: Partial<InsertCalendarSettings>): Promise<CalendarSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -256,6 +272,50 @@ export class DatabaseStorage implements IStorage {
       .update(smtpSettings)
       .set({ ...settingsData, updatedAt: new Date() })
       .where(eq(smtpSettings.userId, userId))
+      .returning();
+    return updatedSettings;
+  }
+
+  async getZoomSettings(userId: string): Promise<ZoomSettings | undefined> {
+    const [settings] = await db
+      .select()
+      .from(zoomSettings)
+      .where(eq(zoomSettings.userId, userId));
+    return settings;
+  }
+
+  async createZoomSettings(settingsData: InsertZoomSettings): Promise<ZoomSettings> {
+    const [settings] = await db.insert(zoomSettings).values(settingsData).returning();
+    return settings;
+  }
+
+  async updateZoomSettings(userId: string, settingsData: Partial<InsertZoomSettings>): Promise<ZoomSettings> {
+    const [updatedSettings] = await db
+      .update(zoomSettings)
+      .set({ ...settingsData, updatedAt: new Date() })
+      .where(eq(zoomSettings.userId, userId))
+      .returning();
+    return updatedSettings;
+  }
+
+  async getCalendarSettings(userId: string): Promise<CalendarSettings | undefined> {
+    const [settings] = await db
+      .select()
+      .from(calendarSettings)
+      .where(eq(calendarSettings.userId, userId));
+    return settings;
+  }
+
+  async createCalendarSettings(settingsData: InsertCalendarSettings): Promise<CalendarSettings> {
+    const [settings] = await db.insert(calendarSettings).values(settingsData).returning();
+    return settings;
+  }
+
+  async updateCalendarSettings(userId: string, settingsData: Partial<InsertCalendarSettings>): Promise<CalendarSettings> {
+    const [updatedSettings] = await db
+      .update(calendarSettings)
+      .set({ ...settingsData, updatedAt: new Date() })
+      .where(eq(calendarSettings.userId, userId))
       .returning();
     return updatedSettings;
   }

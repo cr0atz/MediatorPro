@@ -130,6 +130,25 @@ export const smtpSettings = pgTable("smtp_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const zoomSettings = pgTable("zoom_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  accountId: text("account_id").notNull(),
+  clientId: text("client_id").notNull(),
+  clientSecret: text("client_secret").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const calendarSettings = pgTable("calendar_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  clientId: text("client_id").notNull(),
+  clientSecret: text("client_secret").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const casesRelations = relations(cases, ({ many, one }) => ({
   parties: many(parties),
@@ -229,6 +248,18 @@ export const insertSmtpSettingsSchema = createInsertSchema(smtpSettings).omit({
   updatedAt: true,
 });
 
+export const insertZoomSettingsSchema = createInsertSchema(zoomSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCalendarSettingsSchema = createInsertSchema(calendarSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type Case = typeof cases.$inferSelect;
@@ -238,6 +269,8 @@ export type CaseNote = typeof caseNotes.$inferSelect;
 export type AiAnalysis = typeof aiAnalyses.$inferSelect;
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
 export type SmtpSettings = typeof smtpSettings.$inferSelect;
+export type ZoomSettings = typeof zoomSettings.$inferSelect;
+export type CalendarSettings = typeof calendarSettings.$inferSelect;
 export type InsertCase = z.infer<typeof insertCaseSchema>;
 export type InsertParty = z.infer<typeof insertPartySchema>;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
@@ -245,3 +278,5 @@ export type InsertCaseNote = z.infer<typeof insertCaseNoteSchema>;
 export type InsertAiAnalysis = z.infer<typeof insertAiAnalysisSchema>;
 export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
 export type InsertSmtpSettings = z.infer<typeof insertSmtpSettingsSchema>;
+export type InsertZoomSettings = z.infer<typeof insertZoomSettingsSchema>;
+export type InsertCalendarSettings = z.infer<typeof insertCalendarSettingsSchema>;
