@@ -35,7 +35,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Case, Party, Document } from "@shared/schema";
 import { 
   AlertTriangle, ArrowLeft, Mail, Video, Trash2, Info, Users, Folder, 
-  StickyNote, Bot, Circle, Download, FileText, Plus, Phone
+  StickyNote, Bot, Circle, Download, FileText, Plus, Phone, Edit2
 } from "lucide-react";
 
 interface CaseDetailProps {
@@ -48,6 +48,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showAddPartyDialog, setShowAddPartyDialog] = useState(false);
+  const [showEditCaseDialog, setShowEditCaseDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [isCreatingZoomMeeting, setIsCreatingZoomMeeting] = useState(false);
   const [partyForm, setPartyForm] = useState({
@@ -160,6 +161,39 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
     },
   });
 
+  const [editCaseForm, setEditCaseForm] = useState({
+    mediatorName: '',
+    mediationType: '',
+    mediationDate: '',
+    premises: '',
+  });
+
+  const updateCaseMutation = useMutation({
+    mutationFn: async (updates: any) => {
+      const response = await apiRequest('PATCH', `/api/cases/${caseId}`, updates);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update case');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId] });
+      toast({
+        title: "Success",
+        description: "Case updated successfully",
+      });
+      setShowEditCaseDialog(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update case",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateZoomMeeting = () => {
     setIsCreatingZoomMeeting(true);
     createZoomMeetingMutation.mutate();
@@ -169,6 +203,19 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
     if (case_.zoomMeetingLink) {
       window.open(case_.zoomMeetingLink, '_blank');
     }
+  };
+
+  const handleEditCase = () => {
+    const updates: any = {};
+    if (editCaseForm.mediatorName) updates.mediatorName = editCaseForm.mediatorName;
+    if (editCaseForm.mediationType) updates.mediationType = editCaseForm.mediationType;
+    if (editCaseForm.mediationDate) {
+      // Convert datetime-local input to ISO string
+      updates.mediationDate = new Date(editCaseForm.mediationDate).toISOString();
+    }
+    if (editCaseForm.premises) updates.premises = editCaseForm.premises;
+    
+    updateCaseMutation.mutate(updates);
   };
 
   const { data: caseData, isLoading, error } = useQuery({
@@ -360,7 +407,18 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
             <div className="lg:col-span-2 space-y-6">
               <Card>
                 <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold text-foreground mb-4">Case Information</h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-foreground">Case Information</h3>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setShowEditCaseDialog(true)}
+                      data-testid="button-edit-case"
+                    >
+                      <Edit2 className="w-4 h-4 mr-2" />
+                      Edit
+                    </Button>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Case Number</p>
@@ -869,6 +927,93 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
               data-testid="button-submit-add-party"
             >
               {addPartyMutation.isPending ? "Adding..." : "Add Party"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEditCaseDialog} onOpenChange={(open) => {
+        setShowEditCaseDialog(open);
+        if (open && case_) {
+          // Pre-fill form with current values when opening
+          setEditCaseForm({
+            mediatorName: case_.mediatorName || '',
+            mediationType: case_.mediationType || '',
+            mediationDate: case_.mediationDate 
+              ? new Date(case_.mediationDate).toISOString().slice(0, 16) 
+              : '',
+            premises: case_.premises || '',
+          });
+        }
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Case Information</DialogTitle>
+            <DialogDescription>
+              Update case details including session date/time, mediator, and mediation type.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="edit-mediatorName">Mediator Name</Label>
+              <Input
+                id="edit-mediatorName"
+                value={editCaseForm.mediatorName}
+                onChange={(e) => setEditCaseForm({...editCaseForm, mediatorName: e.target.value})}
+                placeholder="Enter mediator name"
+                data-testid="input-edit-mediator-name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-mediationType">Mediation Type</Label>
+              <Select
+                value={editCaseForm.mediationType}
+                onValueChange={(value) => setEditCaseForm({...editCaseForm, mediationType: value})}
+              >
+                <SelectTrigger id="edit-mediationType" data-testid="select-edit-mediation-type">
+                  <SelectValue placeholder="Select mediation type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Remote">Remote</SelectItem>
+                  <SelectItem value="In-Person">In-Person</SelectItem>
+                  <SelectItem value="Hybrid">Hybrid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="edit-mediationDate">Session Date & Time</Label>
+              <Input
+                id="edit-mediationDate"
+                type="datetime-local"
+                value={editCaseForm.mediationDate}
+                onChange={(e) => setEditCaseForm({...editCaseForm, mediationDate: e.target.value})}
+                data-testid="input-edit-mediation-date"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Select date and time in your local timezone
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="edit-premises">Premises</Label>
+              <Input
+                id="edit-premises"
+                value={editCaseForm.premises}
+                onChange={(e) => setEditCaseForm({...editCaseForm, premises: e.target.value})}
+                placeholder="Enter premises/location"
+                data-testid="input-edit-premises"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditCaseDialog(false)} data-testid="button-cancel-edit">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditCase}
+              disabled={updateCaseMutation.isPending}
+              data-testid="button-submit-edit"
+            >
+              {updateCaseMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>

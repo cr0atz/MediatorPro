@@ -131,6 +131,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/cases/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const updates = req.body;
+
+      // Get the case to verify ownership
+      const caseData = await storage.getCase(id);
+      if (!caseData) {
+        return res.status(404).json({ message: "Case not found" });
+      }
+
+      if (caseData.mediatorId !== userId) {
+        return res.status(403).json({ message: "Not authorized to update this case" });
+      }
+
+      // Convert mediationDate to Date object if provided
+      if (updates.mediationDate) {
+        updates.mediationDate = new Date(updates.mediationDate);
+      }
+
+      const updatedCase = await storage.updateCase(id, updates);
+      res.json(updatedCase);
+    } catch (error) {
+      console.error("Error updating case:", error);
+      res.status(500).json({ message: "Failed to update case" });
+    }
+  });
+
   app.post('/api/cases/create-from-upload', isAuthenticated, upload.single('document'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
