@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { SmtpSettings, EmailTemplate, InsertSmtpSettings, InsertEmailTemplate, ZoomSettings, CalendarSettings, InsertZoomSettings, InsertCalendarSettings } from "@shared/schema";
-import { Server, Mail, Plus, Trash2, Save, TestTube, Video, Calendar } from "lucide-react";
+import { Server, Mail, Plus, Trash2, Save, TestTube, Video, Calendar, Link2, CheckCircle, XCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertSmtpSettingsSchema, insertEmailTemplateSchema, insertZoomSettingsSchema, insertCalendarSettingsSchema } from "@shared/schema";
@@ -237,6 +237,7 @@ export default function Settings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/calendar-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/calendar/connection-status'] });
       toast({
         title: "Calendar Settings Saved",
         description: "Your Google Calendar credentials have been updated successfully.",
@@ -250,6 +251,40 @@ export default function Settings() {
       });
     },
   });
+
+  // Calendar connection status
+  const { data: calendarConnectionStatus } = useQuery<{ connected: boolean }>({
+    queryKey: ['/api/calendar/connection-status'],
+  });
+
+  // OAuth init mutation
+  const calendarOAuthMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/calendar/oauth/init', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to initiate OAuth');
+      }
+      return response.json();
+    },
+    onSuccess: (data: { authUrl: string }) => {
+      // Redirect to Google OAuth page
+      window.location.href = data.authUrl;
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Connection Failed",
+        description: error.message || "Failed to connect to Google Calendar",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleConnectCalendar = () => {
+    calendarOAuthMutation.mutate();
+  };
 
   const onSmtpSubmit = (data: InsertSmtpSettings) => {
     smtpMutation.mutate(data);
@@ -612,15 +647,47 @@ export default function Settings() {
                           </FormItem>
                         )}
                       />
-                      <div className="flex items-center gap-4 pt-4 border-t">
-                        <Button 
-                          type="submit" 
-                          disabled={calendarMutation.isPending}
-                          data-testid="button-save-calendar"
-                        >
-                          <Save className="w-4 h-4 mr-2" />
-                          {calendarMutation.isPending ? 'Saving...' : 'Save Credentials'}
-                        </Button>
+                      <div className="space-y-4 pt-4 border-t">
+                        <div className="flex items-center gap-4">
+                          <Button 
+                            type="submit" 
+                            disabled={calendarMutation.isPending}
+                            data-testid="button-save-calendar"
+                          >
+                            <Save className="w-4 h-4 mr-2" />
+                            {calendarMutation.isPending ? 'Saving...' : 'Save Credentials'}
+                          </Button>
+                        </div>
+                        
+                        {calendarSettings?.clientId && calendarSettings?.clientSecret && (
+                          <div className="flex items-center gap-4 pt-2">
+                            <div className="flex items-center gap-2">
+                              {calendarConnectionStatus?.connected ? (
+                                <>
+                                  <CheckCircle className="w-5 h-5 text-green-500" />
+                                  <span className="text-sm text-muted-foreground">Connected to Google Calendar</span>
+                                </>
+                              ) : (
+                                <>
+                                  <XCircle className="w-5 h-5 text-orange-500" />
+                                  <span className="text-sm text-muted-foreground">Not connected</span>
+                                </>
+                              )}
+                            </div>
+                            {!calendarConnectionStatus?.connected && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleConnectCalendar}
+                                disabled={calendarOAuthMutation.isPending}
+                                data-testid="button-connect-calendar"
+                              >
+                                <Link2 className="w-4 h-4 mr-2" />
+                                {calendarOAuthMutation.isPending ? 'Connecting...' : 'Connect to Google Calendar'}
+                              </Button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </form>
                   </Form>

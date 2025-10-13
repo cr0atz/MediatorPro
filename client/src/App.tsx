@@ -8,7 +8,7 @@ import Home from "@/pages/Home";
 import Landing from "@/pages/Landing";
 import Documents from "@/pages/Documents";
 import AIAssistant from "@/pages/AIAssistant";
-import Calendar from "@/pages/Calendar";
+import Calendar from "@/pages/CalendarMonthView";
 import Communications from "@/pages/Communications";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";

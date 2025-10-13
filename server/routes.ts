@@ -818,6 +818,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to get authenticated calendar service
+  async function getUserCalendarService(userId: string) {
+    const settings = await storage.getCalendarSettings(userId);
+
+    if (!settings || !settings.clientId || !settings.clientSecret) {
+      throw new Error("Please configure Google Calendar credentials in Settings first");
+    }
+
+    if (!settings.accessToken || !settings.refreshToken) {
+      throw new Error("Please connect your Google Calendar first");
+    }
+
+    const { GoogleCalendarOAuthService } = await import('./googleCalendarOAuthService.js');
+    return { service: new GoogleCalendarOAuthService(settings), settings };
+  }
+
+  // Helper to persist refreshed tokens
+  async function saveRefreshedTokens(userId: string, settings: any, service: any) {
+    try {
+      const newTokens = await service.refreshAccessToken();
+      if (newTokens.accessToken !== settings.accessToken) {
+        await storage.updateCalendarSettings(userId, {
+          ...settings,
+          accessToken: newTokens.accessToken,
+          expiryDate: newTokens.expiryDate,
+        });
+      }
+    } catch (error) {
+      // Token refresh failed, ignore
+      console.error("Token refresh failed:", error);
+    }
+  }
+
   // Google Calendar OAuth routes
   app.get('/api/calendar/oauth/init', isAuthenticated, async (req: any, res) => {
     try {
@@ -1005,12 +1038,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Google Calendar integration routes
   app.get('/api/calendar/events', isAuthenticated, async (req: any, res) => {
     try {
-      const { googleCalendarService } = await import('./googleCalendarService.js');
-      const events = await googleCalendarService.listUpcomingEvents(20);
+      const userId = req.user.claims.sub;
+      const { service, settings } = await getUserCalendarService(userId);
+      const events = await service.listUpcomingEvents(50);
+      await saveRefreshedTokens(userId, settings, service);
       res.json(events);
     } catch (error) {
       console.error("Error fetching calendar events:", error);
-      res.status(500).json({ 
+      res.status(400).json({ 
         message: error instanceof Error ? error.message : "Failed to fetch calendar events" 
       });
     }
@@ -1019,7 +1054,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/calendar/sync-cases', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { googleCalendarService } = await import('./googleCalendarService.js');
+      const { service: calendarService, settings } = await getUserCalendarService(userId);
       
       // Get all cases with mediation dates
       const cases = await storage.getCases(userId);
@@ -1055,26 +1090,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ].filter(Boolean).join('\n');
 
           if (caseData.calendarEventId) {
-            // Update existing event
-            await googleCalendarService.updateEvent(caseData.calendarEventId, {
-              summary: `Mediation: ${caseData.caseNumber}`,
-              description,
-              location: caseData.premises || '',
-              startDateTime: startDateTime.toISOString(),
-              endDateTime: endDateTime.toISOString(),
-              attendees,
-            });
-            results.push({ caseId: caseData.id, action: 'updated' });
+            // Delete and recreate to avoid type conflict errors
+            try {
+              await calendarService.deleteEvent(caseData.calendarEventId);
+            } catch (e) {
+              console.log('Event already deleted');
+            }
+          }
+          
+          // Create event (or recreate if existed)
+          const eventId = await calendarService.createEvent({
+            summary: `Mediation: ${caseData.caseNumber}`,
+            description,
+            location: caseData.premises || '',
+            startDateTime: startDateTime.toISOString(),
+            endDateTime: endDateTime.toISOString(),
+            attendees,
+          });
+
+          if (caseData.calendarEventId) {
+            await storage.updateCase(caseData.id, { calendarEventId: eventId });
+            results.push({ caseId: caseData.id, action: 'updated', eventId });
           } else {
-            // Create new event
-            const eventId = await googleCalendarService.createEvent({
-              summary: `Mediation: ${caseData.caseNumber}`,
-              description,
-              location: caseData.premises || '',
-              startDateTime: startDateTime.toISOString(),
-              endDateTime: endDateTime.toISOString(),
-              attendees,
-            });
 
             // Update case with calendar event ID
             await storage.updateCase(caseData.id, { calendarEventId: eventId });
@@ -1103,7 +1140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { caseId } = req.params;
       const userId = req.user.claims.sub;
-      const { googleCalendarService } = await import('./googleCalendarService.js');
+      const { service: calendarService, settings } = await getUserCalendarService(userId);
 
       const caseData = await storage.getCase(caseId);
       if (!caseData) {
@@ -1145,19 +1182,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (caseData.calendarEventId) {
         // Check if the existing event still exists
-        const existingEvent = await googleCalendarService.getEvent(caseData.calendarEventId);
+        const existingEvent = await calendarService.getEvent(caseData.calendarEventId);
         
         if (existingEvent) {
           // Delete the old event and create a new one to avoid "Event type cannot be changed" errors
           try {
-            await googleCalendarService.deleteEvent(caseData.calendarEventId);
+            await calendarService.deleteEvent(caseData.calendarEventId);
           } catch (error) {
             console.log('Event already deleted or not found, creating new one');
           }
         }
         
         // Create new event
-        const eventId = await googleCalendarService.createEvent({
+        const eventId = await calendarService.createEvent({
           summary: `Mediation: ${caseData.caseNumber}`,
           description,
           location: caseData.premises || '',
@@ -1167,9 +1204,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         const updatedCase = await storage.updateCase(caseId, { calendarEventId: eventId });
+        await saveRefreshedTokens(userId, settings, calendarService);
         res.json({ action: 'recreated', eventId, case: updatedCase });
       } else {
-        const eventId = await googleCalendarService.createEvent({
+        const eventId = await calendarService.createEvent({
           summary: `Mediation: ${caseData.caseNumber}`,
           description,
           location: caseData.premises || '',
@@ -1179,6 +1217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         const updatedCase = await storage.updateCase(caseId, { calendarEventId: eventId });
+        await saveRefreshedTokens(userId, settings, calendarService);
         res.json({ action: 'created', eventId, case: updatedCase });
       }
     } catch (error) {
