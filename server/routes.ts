@@ -656,16 +656,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/smtp-settings', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const settingsData = {
-        ...req.body,
-        userId,
-      };
-      const validatedData = insertSmtpSettingsSchema.parse(settingsData);
-      const settings = await storage.createSmtpSettings(validatedData);
-      res.json(settings);
+      
+      // Check if settings already exist
+      const existingSettings = await storage.getSmtpSettings(userId);
+      
+      if (existingSettings) {
+        // Update existing settings
+        const settings = await storage.updateSmtpSettings(userId, req.body);
+        res.json(settings);
+      } else {
+        // Create new settings
+        const settingsData = {
+          ...req.body,
+          userId,
+        };
+        const validatedData = insertSmtpSettingsSchema.parse(settingsData);
+        const settings = await storage.createSmtpSettings(validatedData);
+        res.json(settings);
+      }
     } catch (error) {
-      console.error("Error creating SMTP settings:", error);
-      res.status(500).json({ message: "Failed to create SMTP settings" });
+      console.error("Error saving SMTP settings:", error);
+      res.status(500).json({ message: "Failed to save SMTP settings" });
     }
   });
 
