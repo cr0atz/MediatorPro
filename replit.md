@@ -10,6 +10,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**October 13, 2025 - Session 8**
+- Implemented complete Google Calendar integration with OAuth and two-way sync:
+  - Created googleCalendarService.ts using Replit Google Calendar connector for OAuth
+  - Added calendarEventId field to cases schema for event linkage tracking
+  - Built Calendar page displaying upcoming Google Calendar events with full details (summary, date, location, attendees)
+  - API routes: GET /api/calendar/events, POST /api/calendar/sync-cases, POST /api/cases/:caseId/sync-to-calendar, DELETE /api/cases/:caseId/calendar-event, POST /api/calendar/create-case-from-event
+  - "Sync to Calendar" button in CaseDetail Quick Actions for individual case sync
+  - "Sync All Cases to Calendar" button for bulk sync of all cases with mediation dates
+  - Two-way sync: Create cases from calendar events via "Create Case from Event" dialog
+  - Fixed "Event type cannot be changed" error using delete-and-recreate strategy for updates
+  - Automatically extracts attendees from parties when creating calendar events
+  - Calendar events include case details in description (case number, background, location)
+- End-to-end testing confirmed all sync operations work correctly with no errors
+- Architect-approved as production-ready
+
 **October 13, 2025 - Session 7**
 - Implemented comprehensive credentials management for Zoom and Google Calendar integrations:
   - Added Zoom Credentials tab in Settings page with Account ID, Client ID, and Client Secret fields
