@@ -10,6 +10,26 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**October 13, 2025 - Session 6**
+- Implemented complete Zoom video conferencing integration with OAuth and meeting management:
+  - Created ZoomService with server-to-server OAuth authentication using secure credentials stored in Replit Secrets
+  - Token caching with 10-minute expiry padding to prevent edge-case failures
+  - Meeting lifecycle: Create meetings on-demand with secure random passwords, delete when needed
+  - Added zoomMeetingId, zoomMeetingLink, zoomMeetingPassword fields to cases schema
+  - API routes: POST/DELETE /api/cases/:caseId/zoom-meeting with proper authorization
+  - UI: "Start Zoom Session" button creates meeting, changes to "Join Zoom Session" with link in new tab
+  - Loading states, error handling, and query cache invalidation
+- Expanded email template variable system with party-specific placeholders:
+  - Added Zoom variables: {zoomLink}, {zoomPassword}
+  - Added indexed party variables: {applicant_1_name}, {applicant_1_contact}, {applicant_1_email}, {applicant_1_phone}
+  - Added lawyer variables: {applicant_1_lawyer}, {applicant_1_lawyer_firm}, {applicant_1_lawyer_email}, {applicant_1_lawyer_phone}
+  - Respondent variables: {respondent_1_name}, {respondent_1_contact}, etc. (supports _1, _2, _3 for multiple parties)
+  - Final pass cleanup: Any unreplaced party placeholders converted to bracketed fallbacks like [Applicant 1 Name]
+  - Updated Settings page to document all available template variables
+- Fixed party placeholder bug where missing data left raw tokens instead of bracketed fallbacks
+- End-to-end testing confirmed Zoom meeting creation and all email placeholders work correctly
+- Architect-approved as production-ready
+
 **October 12, 2025 - Session 5**
 - Fixed email template synchronization between Settings and Send Email dialog:
   - EmailModal component now uses database templates from /api/email/templates endpoint instead of hardcoded templates
