@@ -1107,6 +1107,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/calendar/create-case-from-event', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { eventId, caseNumber } = req.body;
+      const { googleCalendarService } = await import('./googleCalendarService.js');
+
+      if (!eventId || !caseNumber) {
+        return res.status(400).json({ message: "Event ID and case number are required" });
+      }
+
+      // Get the event from Google Calendar
+      const event = await googleCalendarService.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Calendar event not found" });
+      }
+
+      // Extract event details
+      const mediationDate = event.start.dateTime ? new Date(event.start.dateTime) : null;
+      const premises = event.location || '';
+      
+      // Parse description to extract case details
+      let disputeBackground = event.description || '';
+      
+      // Get user details for mediator name
+      const user = await storage.getUser(userId);
+      const mediatorName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
+
+      // Create the case
+      const newCase = await storage.createCase({
+        caseNumber,
+        mediatorId: userId,
+        mediatorName: mediatorName || undefined,
+        mediationType: 'Remote',
+        mediationDate,
+        premises,
+        disputeBackground: disputeBackground || undefined,
+        status: 'active',
+        calendarEventId: eventId,
+      });
+
+      // Extract attendees as parties if available
+      if (event.attendees && event.attendees.length > 0) {
+        for (let i = 0; i < event.attendees.length; i++) {
+          const attendee = event.attendees[i];
+          await storage.createParty({
+            caseId: newCase.id,
+            entityName: attendee.displayName || attendee.email,
+            partyType: i === 0 ? 'applicant' : 'respondent',
+            primaryContactEmail: attendee.email,
+          });
+        }
+      }
+
+      res.json(newCase);
+    } catch (error) {
+      console.error("Error creating case from event:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to create case from event" 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

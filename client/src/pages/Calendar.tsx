@@ -4,7 +4,17 @@ import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, RefreshCw, ExternalLink, MapPin, Users } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Calendar as CalendarIcon, RefreshCw, ExternalLink, MapPin, Users, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -32,6 +42,9 @@ interface CalendarEvent {
 export default function Calendar() {
   const { toast } = useToast();
   const [syncing, setSyncing] = useState(false);
+  const [showCreateCaseDialog, setShowCreateCaseDialog] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [caseNumber, setCaseNumber] = useState("");
 
   const { data: events = [], isLoading } = useQuery<CalendarEvent[]>({
     queryKey: ['/api/calendar/events'],
@@ -66,6 +79,63 @@ export default function Calendar() {
     setSyncing(true);
     await syncCasesMutation.mutateAsync();
     setSyncing(false);
+  };
+
+  const handleCreateCaseFromEvent = (event: CalendarEvent) => {
+    setSelectedEvent(event);
+    setCaseNumber("");
+    setShowCreateCaseDialog(true);
+  };
+
+  const createCaseMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedEvent) return;
+      
+      const response = await fetch('/api/calendar/create-case-from-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId: selectedEvent.id,
+          caseNumber,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create case');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/cases'] });
+      toast({
+        title: "Case Created",
+        description: "Case created successfully from calendar event",
+      });
+      setShowCreateCaseDialog(false);
+      setSelectedEvent(null);
+      setCaseNumber("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Create Case",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmitCreateCase = () => {
+    if (!caseNumber.trim()) {
+      toast({
+        title: "Case Number Required",
+        description: "Please enter a case number",
+        variant: "destructive",
+      });
+      return;
+    }
+    createCaseMutation.mutate();
   };
 
   const formatEventDate = (event: CalendarEvent) => {
@@ -213,11 +283,74 @@ export default function Calendar() {
                       </div>
                     </div>
                   )}
+                  <div className="mt-4 pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCreateCaseFromEvent(event)}
+                      data-testid={`button-create-case-${event.id}`}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Case from Event
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
+
+        <Dialog open={showCreateCaseDialog} onOpenChange={setShowCreateCaseDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create Case from Calendar Event</DialogTitle>
+              <DialogDescription>
+                Create a new mediation case from this calendar event. The event details will be used to populate the case information.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="case-number">Case Number *</Label>
+                <Input
+                  id="case-number"
+                  value={caseNumber}
+                  onChange={(e) => setCaseNumber(e.target.value)}
+                  placeholder="e.g., MED-2024-001"
+                  data-testid="input-case-number"
+                />
+              </div>
+              {selectedEvent && (
+                <div className="bg-muted p-3 rounded-md text-sm">
+                  <p className="font-medium mb-1">Event: {selectedEvent.summary}</p>
+                  {selectedEvent.start.dateTime && (
+                    <p className="text-muted-foreground">
+                      Date: {format(new Date(selectedEvent.start.dateTime), 'PPP p')}
+                    </p>
+                  )}
+                  {selectedEvent.location && (
+                    <p className="text-muted-foreground">Location: {selectedEvent.location}</p>
+                  )}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowCreateCaseDialog(false)}
+                data-testid="button-cancel-create-case"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitCreateCase}
+                disabled={createCaseMutation.isPending}
+                data-testid="button-submit-create-case"
+              >
+                {createCaseMutation.isPending ? "Creating..." : "Create Case"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
