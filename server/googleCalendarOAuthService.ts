@@ -97,11 +97,9 @@ export class GoogleCalendarOAuthService {
         location: params.location,
         start: {
           dateTime: params.startDateTime,
-          timeZone: 'UTC',
         },
         end: {
           dateTime: params.endDateTime,
-          timeZone: 'UTC',
         },
         attendees: params.attendees?.map(a => ({
           email: a.email,
