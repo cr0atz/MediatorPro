@@ -818,6 +818,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Calendar OAuth routes
+  app.get('/api/calendar/oauth/init', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settings = await storage.getCalendarSettings(userId);
+
+      if (!settings || !settings.clientId || !settings.clientSecret) {
+        return res.status(400).json({ message: "Please configure Google Calendar credentials in Settings first" });
+      }
+
+      const { GoogleCalendarOAuthService } = await import('./googleCalendarOAuthService.js');
+      const calendarService = new GoogleCalendarOAuthService(settings);
+
+      // Generate random state for CSRF protection
+      const state = Math.random().toString(36).substring(7);
+      
+      // Store state in session for verification
+      req.session.oauthState = state;
+      req.session.save();
+
+      const authUrl = calendarService.getAuthUrl(state);
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Error initiating OAuth:", error);
+      res.status(500).json({ message: "Failed to initiate OAuth flow" });
+    }
+  });
+
+  app.get('/api/calendar/oauth/callback', async (req: any, res) => {
+    try {
+      const { code, state } = req.query;
+
+      if (!code) {
+        return res.status(400).send("No authorization code provided");
+      }
+
+      // Verify state to prevent CSRF
+      if (state !== req.session?.oauthState) {
+        return res.status(400).send("Invalid state parameter");
+      }
+
+      // Clear the state from session
+      delete req.session.oauthState;
+      req.session.save();
+
+      // Get user from session
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).send("Not authenticated");
+      }
+
+      const settings = await storage.getCalendarSettings(userId);
+      if (!settings) {
+        return res.status(400).send("Calendar settings not found");
+      }
+
+      const { GoogleCalendarOAuthService } = await import('./googleCalendarOAuthService.js');
+      const calendarService = new GoogleCalendarOAuthService(settings);
+
+      // Exchange code for tokens
+      const tokens = await calendarService.getTokensFromCode(code as string);
+
+      // Update settings with tokens
+      await storage.updateCalendarSettings(userId, {
+        ...settings,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        scope: tokens.scope,
+        expiryDate: tokens.expiryDate,
+      });
+
+      // Redirect to settings page with success
+      res.redirect('/#/settings?tab=calendar&connected=true');
+    } catch (error) {
+      console.error("Error in OAuth callback:", error);
+      res.redirect('/#/settings?tab=calendar&error=oauth_failed');
+    }
+  });
+
+  app.get('/api/calendar/connection-status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settings = await storage.getCalendarSettings(userId);
+
+      if (!settings || !settings.accessToken || !settings.refreshToken) {
+        return res.json({ connected: false });
+      }
+
+      const { GoogleCalendarOAuthService } = await import('./googleCalendarOAuthService.js');
+      const calendarService = new GoogleCalendarOAuthService(settings);
+
+      res.json({ connected: calendarService.isConnected() });
+    } catch (error) {
+      console.error("Error checking connection status:", error);
+      res.json({ connected: false });
+    }
+  });
+
   // Zoom integration routes
   app.post('/api/cases/:caseId/zoom-meeting', isAuthenticated, async (req: any, res) => {
     try {
