@@ -146,6 +146,10 @@ export const calendarSettings = pgTable("calendar_settings", {
   userId: varchar("user_id").notNull().unique(),
   clientId: text("client_id").notNull(),
   clientSecret: text("client_secret").notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  scope: text("scope"),
+  expiryDate: timestamp("expiry_date"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
