@@ -1046,7 +1046,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ].filter(Boolean).join('\n');
 
       if (caseData.calendarEventId) {
-        await googleCalendarService.updateEvent(caseData.calendarEventId, {
+        // Check if the existing event still exists
+        const existingEvent = await googleCalendarService.getEvent(caseData.calendarEventId);
+        
+        if (existingEvent) {
+          // Delete the old event and create a new one to avoid "Event type cannot be changed" errors
+          try {
+            await googleCalendarService.deleteEvent(caseData.calendarEventId);
+          } catch (error) {
+            console.log('Event already deleted or not found, creating new one');
+          }
+        }
+        
+        // Create new event
+        const eventId = await googleCalendarService.createEvent({
           summary: `Mediation: ${caseData.caseNumber}`,
           description,
           location: caseData.premises || '',
@@ -1054,7 +1067,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           endDateTime: endDateTime.toISOString(),
           attendees,
         });
-        res.json({ action: 'updated', eventId: caseData.calendarEventId });
+
+        const updatedCase = await storage.updateCase(caseId, { calendarEventId: eventId });
+        res.json({ action: 'recreated', eventId, case: updatedCase });
       } else {
         const eventId = await googleCalendarService.createEvent({
           summary: `Mediation: ${caseData.caseNumber}`,
