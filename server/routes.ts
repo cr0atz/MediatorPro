@@ -924,8 +924,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { googleCalendarService } = await import('./googleCalendarService.js');
       
       // Get all cases with mediation dates
-      const cases = await storage.getAllCases(userId);
-      const casesWithDates = cases.filter(c => c.mediationDate);
+      const cases = await storage.getCases(userId);
+      const casesWithDates = cases.filter((c: any) => c.mediationDate);
       
       const results = [];
       

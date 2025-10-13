@@ -35,7 +35,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Case, Party, Document } from "@shared/schema";
 import { 
   AlertTriangle, ArrowLeft, Mail, Video, Trash2, Info, Users, Folder, 
-  StickyNote, Bot, Circle, Download, FileText, Plus, Phone, Edit2
+  StickyNote, Bot, Circle, Download, FileText, Plus, Phone, Edit2, CalendarDays
 } from "lucide-react";
 
 interface CaseDetailProps {
@@ -51,6 +51,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
   const [showEditCaseDialog, setShowEditCaseDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [isCreatingZoomMeeting, setIsCreatingZoomMeeting] = useState(false);
+  const [isSyncingCalendar, setIsSyncingCalendar] = useState(false);
   const [partyForm, setPartyForm] = useState({
     entityName: '',
     partyType: 'applicant',
@@ -202,6 +203,49 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
   const handleJoinZoomMeeting = () => {
     if (case_.zoomMeetingLink) {
       window.open(case_.zoomMeetingLink, '_blank');
+    }
+  };
+
+  const handleSyncToCalendar = async () => {
+    if (!case_.mediationDate) {
+      toast({
+        title: "No Mediation Date",
+        description: "Please set a mediation date before syncing to calendar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSyncingCalendar(true);
+    try {
+      const response = await fetch(`/api/cases/${caseId}/sync-to-calendar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to sync to calendar');
+      }
+
+      const result = await response.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/calendar/events'] });
+
+      toast({
+        title: "Calendar Synced",
+        description: result.action === 'created' 
+          ? "Calendar event created successfully" 
+          : "Calendar event updated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Sync Failed",
+        description: error instanceof Error ? error.message : "Failed to sync to calendar",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncingCalendar(false);
     }
   };
 
@@ -510,6 +554,16 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                     >
                       <Mail className="w-4 h-4 mr-2" />
                       Send Communication
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-center"
+                      onClick={handleSyncToCalendar}
+                      disabled={isSyncingCalendar || !case_.mediationDate}
+                      data-testid="button-sync-calendar"
+                    >
+                      <CalendarDays className="w-4 h-4 mr-2" />
+                      {case_.calendarEventId ? 'Update Calendar Event' : 'Sync to Calendar'}
                     </Button>
                     <Button
                       variant="outline"
