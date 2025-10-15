@@ -80,18 +80,56 @@ export class LocalFileStorageService {
     return `/objects/${fileId}`;
   }
 
-  // Get file path from object path
+  // Get file path from object path (with security checks)
   private getFilePathFromObjectPath(objectPath: string): string {
     if (!objectPath.startsWith("/objects/")) {
       throw new ObjectNotFoundError();
     }
-    const fileId = objectPath.replace("/objects/", "");
-    return path.join(DOCUMENTS_DIR, fileId);
+    
+    let fileId = objectPath.replace("/objects/", "");
+    
+    // Security: Prevent path traversal with .. sequences
+    if (fileId.includes("..")) {
+      throw new ObjectNotFoundError();
+    }
+    
+    // Normalize path separators (convert / to platform-specific separator)
+    fileId = fileId.replace(/\//g, path.sep);
+    
+    // Resolve and normalize the path
+    const resolvedPath = path.resolve(DOCUMENTS_DIR, fileId);
+    const baseDir = path.resolve(DOCUMENTS_DIR);
+    
+    // Security: Ensure the resolved path is within DOCUMENTS_DIR
+    // Use path.relative to check containment - it should not start with .. or be absolute
+    const relativePath = path.relative(baseDir, resolvedPath);
+    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+      throw new ObjectNotFoundError();
+    }
+    
+    return resolvedPath;
   }
 
-  // Get ACL path from file ID
+  // Get ACL path from file ID (with security checks)
   private getAclPath(fileId: string): string {
-    return path.join(ACL_DIR, `${fileId}.json`);
+    // Security: Prevent path traversal attacks
+    if (fileId.includes("..")) {
+      throw new ObjectNotFoundError();
+    }
+    
+    // Normalize path separators
+    const normalizedId = fileId.replace(/\//g, path.sep);
+    
+    const resolvedPath = path.resolve(ACL_DIR, `${normalizedId}.json`);
+    const baseDir = path.resolve(ACL_DIR);
+    
+    // Security: Ensure the resolved path is within ACL_DIR using path.relative
+    const relativePath = path.relative(baseDir, resolvedPath);
+    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+      throw new ObjectNotFoundError();
+    }
+    
+    return resolvedPath;
   }
 
   // Check if file exists
@@ -118,7 +156,18 @@ export class LocalFileStorageService {
 
   // Set ACL policy for a file
   async setAclPolicy(objectPath: string, aclPolicy: AclPolicy): Promise<void> {
+    // Security: Validate and sanitize the object path first
+    if (!objectPath.startsWith("/objects/")) {
+      throw new ObjectNotFoundError();
+    }
+    
     const fileId = objectPath.replace("/objects/", "");
+    
+    // Security: Prevent path traversal
+    if (fileId.includes("..")) {
+      throw new ObjectNotFoundError();
+    }
+    
     const aclPath = this.getAclPath(fileId);
     
     // Read existing metadata
@@ -223,7 +272,24 @@ export class LocalFileStorageService {
       if (fileIdOrPath.startsWith("/objects/")) {
         filePath = this.getFilePathFromObjectPath(fileIdOrPath);
       } else {
-        filePath = path.join(DOCUMENTS_DIR, fileIdOrPath);
+        // Security: Prevent path traversal
+        if (fileIdOrPath.includes("..")) {
+          throw new ObjectNotFoundError();
+        }
+        
+        // Normalize path separators
+        const normalizedId = fileIdOrPath.replace(/\//g, path.sep);
+        
+        const resolvedPath = path.resolve(DOCUMENTS_DIR, normalizedId);
+        const baseDir = path.resolve(DOCUMENTS_DIR);
+        
+        // Security: Ensure the resolved path is within DOCUMENTS_DIR using path.relative
+        const relativePath = path.relative(baseDir, resolvedPath);
+        if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+          throw new ObjectNotFoundError();
+        }
+        
+        filePath = resolvedPath;
       }
 
       const buffer = await fs.readFile(filePath);
