@@ -214,6 +214,26 @@ export class LocalFileStorageService {
     }
   }
 
+  // Read file buffer (for processing)
+  async readFile(fileIdOrPath: string): Promise<Buffer> {
+    try {
+      let filePath: string;
+      
+      // Check if input is an object path or just a file ID
+      if (fileIdOrPath.startsWith("/objects/")) {
+        filePath = this.getFilePathFromObjectPath(fileIdOrPath);
+      } else {
+        filePath = path.join(DOCUMENTS_DIR, fileIdOrPath);
+      }
+
+      const buffer = await fs.readFile(filePath);
+      return buffer;
+    } catch (error) {
+      console.error("Error reading file:", error);
+      throw new ObjectNotFoundError();
+    }
+  }
+
   // Delete file and its metadata
   async deleteFile(objectPath: string): Promise<void> {
     const filePath = this.getFilePathFromObjectPath(objectPath);

@@ -3,8 +3,7 @@ import { createServer, type Server } from "http";
 import multer from 'multer';
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { ObjectPermission } from "./objectAcl";
+import { LocalFileStorageService, ObjectNotFoundError } from "./localFileStorage";
 import { aiService } from "./aiService";
 import { emailService } from "./emailService";
 import { insertCaseSchema, insertPartySchema, insertDocumentSchema, insertCaseNoteSchema, insertAiAnalysisSchema, insertEmailTemplateSchema, insertSmtpSettingsSchema, insertZoomSettingsSchema, insertCalendarSettingsSchema } from "@shared/schema";
@@ -48,23 +47,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Object storage routes for documents
+  // Local file storage routes for documents
   app.get("/objects/:objectPath(*)", isAuthenticated, async (req, res) => {
     const userId = req.user?.claims?.sub;
-    const objectStorageService = new ObjectStorageService();
+    const fileStorage = new LocalFileStorageService();
     try {
-      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
-      const canAccess = await objectStorageService.canAccessObjectEntity({
-        objectFile,
-        userId: userId,
-        requestedPermission: ObjectPermission.READ,
-      });
+      const canAccess = await fileStorage.canAccessFile(req.path, userId, "read");
       if (!canAccess) {
         return res.sendStatus(401);
       }
-      objectStorageService.downloadObject(objectFile, res);
+      await fileStorage.downloadFile(req.path, res);
     } catch (error) {
-      console.error("Error checking object access:", error);
+      console.error("Error accessing file:", error);
       if (error instanceof ObjectNotFoundError) {
         return res.sendStatus(404);
       }
@@ -72,10 +66,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Direct file upload endpoint for local storage
+  app.post("/api/documents/upload-local", isAuthenticated, upload.single('file'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const fileStorage = new LocalFileStorageService();
+      const objectPath = await fileStorage.saveFile(
+        file.buffer,
+        {
+          contentType: file.mimetype,
+          size: file.size,
+          uploadedAt: new Date().toISOString(),
+          userId: userId,
+        },
+        userId
+      );
+
+      res.json({ objectPath });
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      res.status(500).json({ message: "Failed to upload file" });
+    }
+  });
+
+  // Legacy upload endpoint (for compatibility)
   app.post("/api/objects/upload", isAuthenticated, async (req, res) => {
-    const objectStorageService = new ObjectStorageService();
-    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-    res.json({ uploadURL });
+    // Return local upload endpoint instead of presigned URL
+    res.json({ uploadURL: "/api/documents/upload-local" });
   });
 
   // Case management routes
@@ -169,22 +192,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Upload file to object storage
-      const objectStorageService = new ObjectStorageService();
-      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-      
-      // Upload file using the presigned URL
-      const uploadResponse = await fetch(uploadURL, {
-        method: 'PUT',
-        body: file.buffer,
-        headers: {
-          'Content-Type': file.mimetype,
+      // Save file to local storage
+      const fileStorage = new LocalFileStorageService();
+      const objectPath = await fileStorage.saveFile(
+        file.buffer,
+        {
+          contentType: file.mimetype,
+          size: file.size,
+          uploadedAt: new Date().toISOString(),
+          userId: userId,
         },
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file to storage');
-      }
+        userId
+      );
 
       // Extract case data using AI (with fallback for errors)
       let extractedData: any = {};
@@ -242,12 +261,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.createParty(validatedPartyData);
         }
       }
-
-      // Set ACL policy for the uploaded document
-      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(uploadURL, {
-        owner: userId,
-        visibility: "private",
-      });
 
       // Create document record
       const documentData = {
@@ -333,30 +346,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Upload file to object storage
-      const objectStorageService = new ObjectStorageService();
-      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-      
-      const uploadResponse = await fetch(uploadURL, {
-        method: 'PUT',
-        body: file.buffer,
-        headers: {
-          'Content-Type': file.mimetype,
+      // Save file to local storage
+      const fileStorage = new LocalFileStorageService();
+      const objectPath = await fileStorage.saveFile(
+        file.buffer,
+        {
+          contentType: file.mimetype,
+          size: file.size,
+          uploadedAt: new Date().toISOString(),
+          userId: userId,
         },
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file to storage');
-      }
+        userId
+      );
 
       // Extract text content for RAG
       const extractedText = await aiService.extractTextFromDocument(file.buffer, file.mimetype);
-
-      // Set ACL policy
-      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(uploadURL, {
-        owner: userId,
-        visibility: "private",
-      });
 
       // Create document record
       const documentData = {
@@ -391,23 +395,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Upload URL is required" });
       }
 
-      // Set ACL policy for the uploaded file
-      const objectStorageService = new ObjectStorageService();
-      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(uploadURL, {
-        owner: userId,
-        visibility: "private",
-      });
+      // For local storage, uploadURL is actually the objectPath
+      const objectPath = uploadURL;
 
       // Extract text from the uploaded document
       let extractedText = '';
       let isProcessed = false;
       
       try {
-        // Get the file from object storage using the objectPath
-        const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
+        const fileStorage = new LocalFileStorageService();
         
-        // Download the file contents as a buffer
-        const [fileBuffer] = await objectFile.download();
+        // Read file from local storage
+        const filePath = objectPath.replace("/objects/", "");
+        const fileBuffer = await fileStorage.readFile(filePath);
         
         // Extract text from the buffer
         extractedText = await aiService.extractTextFromDocument(fileBuffer, mimeType || 'application/octet-stream');
@@ -454,9 +454,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let isProcessed = false;
       
       try {
-        const objectStorageService = new ObjectStorageService();
-        const objectFile = await objectStorageService.getObjectEntityFile(document.objectPath);
-        const [fileBuffer] = await objectFile.download();
+        const fileStorage = new LocalFileStorageService();
+        const fileBuffer = await fileStorage.readFile(document.objectPath);
         extractedText = await aiService.extractTextFromDocument(fileBuffer, document.mimeType);
         isProcessed = true;
       } catch (extractError) {
