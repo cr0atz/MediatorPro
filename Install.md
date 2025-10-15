@@ -185,11 +185,9 @@ SESSION_SECRET=generate_random_64_char_string_here
 # OpenAI
 OPENAI_API_KEY=sk-your-openai-api-key
 
-# Google Cloud Storage
-DEFAULT_OBJECT_STORAGE_BUCKET_ID=your-gcs-bucket-id
-PUBLIC_OBJECT_SEARCH_PATHS=public
-PRIVATE_OBJECT_DIR=.private
-GOOGLE_APPLICATION_CREDENTIALS=/home/mediator/mediator-pro/gcs-credentials.json
+# Local File Storage
+UPLOAD_DIR=/home/mediator/mediator-pro/uploads
+MAX_FILE_SIZE=52428800
 
 # Zoom (Optional - configure via Settings UI)
 ZOOM_ACCOUNT_ID=
@@ -308,51 +306,54 @@ sudo certbot renew --dry-run
 
 ## 8. External Services Configuration
 
-### 8.1 Google Cloud Storage Setup
+### 8.1 Local File Storage Setup
 
-#### Create GCS Bucket
+For self-hosted deployments, files are stored directly on the server instead of cloud storage.
+
+#### Create Storage Directories
 ```bash
-# Install Google Cloud SDK
-curl https://sdk.cloud.google.com | bash
-exec -l $SHELL
-gcloud init
+# Create uploads directory for documents
+sudo mkdir -p /home/mediator/mediator-pro/uploads
+sudo mkdir -p /home/mediator/mediator-pro/uploads/documents
+sudo mkdir -p /home/mediator/mediator-pro/uploads/temp
 
-# Create bucket
-gsutil mb -p your-project-id -c STANDARD -l us-central1 gs://mediator-pro-storage
-
-# Set CORS configuration
-cat > cors.json << EOF
-[
-  {
-    "origin": ["https://yourdomain.com"],
-    "method": ["GET", "POST", "PUT", "DELETE"],
-    "responseHeader": ["Content-Type"],
-    "maxAgeSeconds": 3600
-  }
-]
-EOF
-
-gsutil cors set cors.json gs://mediator-pro-storage
+# Set ownership and permissions
+sudo chown -R mediator:mediator /home/mediator/mediator-pro/uploads
+sudo chmod -R 755 /home/mediator/mediator-pro/uploads
 ```
 
-#### Create Service Account
+#### Configure Apache for File Serving (Optional)
+If you want Apache to serve uploaded files directly:
+
 ```bash
-# Create service account
-gcloud iam service-accounts create mediator-pro-storage \
-    --display-name="Mediator Pro Storage"
-
-# Grant permissions
-gcloud projects add-iam-policy-binding your-project-id \
-    --member="serviceAccount:mediator-pro-storage@your-project-id.iam.gserviceaccount.com" \
-    --role="roles/storage.objectAdmin"
-
-# Create key file
-gcloud iam service-accounts keys create /home/mediator/mediator-pro/gcs-credentials.json \
-    --iam-account=mediator-pro-storage@your-project-id.iam.gserviceaccount.com
-
-sudo chown mediator:mediator /home/mediator/mediator-pro/gcs-credentials.json
-sudo chmod 600 /home/mediator/mediator-pro/gcs-credentials.json
+sudo nano /etc/apache2/sites-available/mediator-pro.conf
 ```
+
+Add inside the `<VirtualHost *:443>` block:
+```apache
+# Serve uploaded files
+Alias /uploads /home/mediator/mediator-pro/uploads
+<Directory /home/mediator/mediator-pro/uploads>
+    Options -Indexes +FollowSymLinks
+    AllowOverride None
+    Require all granted
+</Directory>
+```
+
+Restart Apache:
+```bash
+sudo systemctl restart apache2
+```
+
+#### Update Environment Variables
+The `.env` file should have:
+```env
+# Local File Storage
+UPLOAD_DIR=/home/mediator/mediator-pro/uploads
+MAX_FILE_SIZE=52428800  # 50MB in bytes
+```
+
+**Note**: The current codebase uses Google Cloud Storage. To use local file storage, see `docs/LOCAL_STORAGE_MIGRATION.md` for code modifications, or you can keep using GCS by following the optional GCS setup in Appendix A.
 
 ### 8.2 Google Calendar OAuth Setup
 

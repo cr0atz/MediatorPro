@@ -51,7 +51,7 @@ An intelligent case management system designed specifically for legal mediators,
 ### Integrations
 - **AI**: OpenAI API (GPT-5)
 - **Email**: SendGrid SMTP
-- **Storage**: Google Cloud Storage
+- **Storage**: Local file system (self-hosted) or Google Cloud Storage (cloud)
 - **Video**: Zoom API (Server-to-Server OAuth)
 - **Calendar**: Google Calendar API (OAuth 2.0)
 
@@ -112,13 +112,20 @@ SESSION_SECRET=your-random-secret-key
 OPENAI_API_KEY=sk-...
 ```
 
+### File Storage
+```env
+# Local File Storage (for self-hosted deployments)
+UPLOAD_DIR=./uploads
+MAX_FILE_SIZE=52428800  # 50MB
+
+# OR Google Cloud Storage (for Replit/cloud deployments)
+# DEFAULT_OBJECT_STORAGE_BUCKET_ID=your-bucket-id
+# PUBLIC_OBJECT_SEARCH_PATHS=public
+# PRIVATE_OBJECT_DIR=.private
+```
+
 ### Optional Integrations
 ```env
-# Google Cloud Storage
-DEFAULT_OBJECT_STORAGE_BUCKET_ID=your-bucket-id
-PUBLIC_OBJECT_SEARCH_PATHS=public
-PRIVATE_OBJECT_DIR=.private
-
 # Zoom (configured via Settings UI)
 ZOOM_ACCOUNT_ID=your-zoom-account-id
 ZOOM_CLIENT_ID=your-zoom-client-id
