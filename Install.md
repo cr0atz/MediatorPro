@@ -353,7 +353,7 @@ UPLOAD_DIR=/home/mediator/mediator-pro/uploads
 MAX_FILE_SIZE=52428800  # 50MB in bytes
 ```
 
-**Note**: The current codebase uses Google Cloud Storage. To use local file storage, see `docs/LOCAL_STORAGE_MIGRATION.md` for code modifications, or you can keep using GCS by following the optional GCS setup in Appendix A.
+**Note**: The application now uses local file storage by default. No additional cloud storage setup is required.
 
 ### 8.2 Google Calendar OAuth Setup
 
@@ -373,16 +373,13 @@ MAX_FILE_SIZE=52428800  # 50MB in bytes
 3. Get Account ID, Client ID, and Client Secret
 4. Configure in Settings UI or environment variables
 
-### 8.4 SendGrid Email Setup
+### 8.4 Email Configuration (Optional)
 
-1. Create [SendGrid account](https://sendgrid.com/)
-2. Create API key with "Mail Send" permissions
-3. Verify sender domain
-4. Configure SMTP in Settings UI:
-   - Host: smtp.sendgrid.net
-   - Port: 587
-   - Username: apikey
-   - Password: [your-api-key]
+The application supports custom SMTP for email notifications. Configure in Settings UI:
+- SMTP Host (e.g., smtp.gmail.com, smtp.office365.com)
+- SMTP Port (usually 587 for TLS)
+- Username (your email)
+- Password (app-specific password recommended)
 
 ---
 
