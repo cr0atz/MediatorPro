@@ -83,24 +83,25 @@ export async function setupAuth(app: Express) {
     console.log("Running in self-hosted mode - using local authentication");
     
     // Create default admin user if not exists
-    const defaultPassword = process.env.ADMIN_PASSWORD || 'admin123'; // Change this!
+    const defaultUsername = process.env.ADMIN_USERNAME || 'danny';
+    const defaultPassword = process.env.ADMIN_PASSWORD || 'DJ6146dj!';
     const passwordHash = await bcrypt.hash(defaultPassword, 10);
     
     const defaultUser = {
-      id: 'admin',
-      email: 'admin@localhost',
-      firstName: 'Admin',
-      lastName: 'User',
+      id: defaultUsername,
+      email: `${defaultUsername}@localhost`,
+      firstName: 'Danny',
+      lastName: 'Admin',
       profileImageUrl: null,
       passwordHash,
       isLocal: true
     };
     
     // Only create if doesn't exist
-    const existingUser = await storage.getUser('admin');
+    const existingUser = await storage.getUser(defaultUsername);
     if (!existingUser) {
       await storage.upsertUser(defaultUser);
-      console.log(`Default admin user created. Username: admin, Password: ${defaultPassword}`);
+      console.log(`Default admin user created. Username: ${defaultUsername}, Password: ${defaultPassword}`);
     }
     
     // Configure local strategy

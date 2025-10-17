@@ -106,7 +106,7 @@ export default function Login() {
             </Button>
           </form>
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            Default credentials: admin / admin123
+            Default credentials: danny / DJ6146dj!
           </div>
         </CardContent>
       </Card>
