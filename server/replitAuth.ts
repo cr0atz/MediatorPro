@@ -11,7 +11,8 @@ import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
 // Check if this is a self-hosted deployment (no Replit auth)
-const isSelfHosted = !process.env.REPL_ID || process.env.REPL_ID === 'self-hosted' || !process.env.REPLIT_DOMAINS;
+// USE_LOCAL_AUTH=true can force local auth even in Replit for testing
+const isSelfHosted = process.env.USE_LOCAL_AUTH === 'true' || !process.env.REPL_ID || process.env.REPL_ID === 'self-hosted' || !process.env.REPLIT_DOMAINS;
 
 const getOidcConfig = memoize(
   async () => {
@@ -42,7 +43,8 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production', // Only secure in production
+      sameSite: 'lax', // Allow cookies to be sent on redirects
       maxAge: sessionTtl,
     },
   });
@@ -129,11 +131,29 @@ export async function setupAuth(app: Express) {
     passport.deserializeUser((user: Express.User, cb) => cb(null, user));
     
     // Login route - POST for form submission
-    app.post("/api/login", passport.authenticate('local', {
-      successRedirect: '/',
-      failureRedirect: '/login',
-      failureFlash: false
-    }));
+    app.post("/api/login", (req, res, next) => {
+      passport.authenticate('local', (err: any, user: any, info: any) => {
+        if (err) {
+          return res.status(500).json({ error: 'Authentication error' });
+        }
+        if (!user) {
+          return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        req.logIn(user, (err) => {
+          if (err) {
+            return res.status(500).json({ error: 'Login failed' });
+          }
+          // Save session before sending response to ensure cookie is set
+          req.session.save((err) => {
+            if (err) {
+              console.error('Session save error:', err);
+              return res.status(500).json({ error: 'Session save failed' });
+            }
+            return res.status(200).json({ success: true, redirect: '/' });
+          });
+        });
+      })(req, res, next);
+    });
     
     // Logout route
     app.get("/api/logout", (req, res) => {

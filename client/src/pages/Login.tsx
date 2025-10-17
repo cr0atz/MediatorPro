@@ -29,17 +29,18 @@ export default function Login() {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: formData.toString(),
-        credentials: 'include',
-        redirect: 'follow'
+        credentials: 'include'
       });
 
-      if (response.ok || response.redirected) {
-        // Login successful
-        setLocation('/');
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Login successful - navigate to home page
+        window.location.href = '/';
       } else {
         toast({
           title: "Login Failed",
-          description: "Invalid username or password",
+          description: data.error || "Invalid username or password",
           variant: "destructive"
         });
       }
