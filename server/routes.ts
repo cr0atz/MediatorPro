@@ -990,6 +990,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Gmail integration routes
+  app.post('/api/gmail/test', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settings = await storage.getCalendarSettings(userId);
+
+      if (!settings || !settings.accessToken || !settings.refreshToken) {
+        return res.status(400).json({ message: "Google account not connected. Please connect to Google Calendar first." });
+      }
+
+      const { GmailService } = await import('./gmailService.js');
+      const gmailService = new GmailService(settings);
+
+      // Send test email
+      const messageId = await gmailService.sendEmail({
+        to: req.body.email || 'me',
+        subject: 'Gmail API Test Email - Mediator Pro',
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
+            <h2 style="color: #2563eb;">Gmail API Test Successful!</h2>
+            <p>This is a test email from Mediator Pro using Gmail API.</p>
+            <p>If you received this email, your Gmail API integration is working correctly.</p>
+            <hr style="border: 1px solid #e5e7eb; margin: 20px 0;">
+            <p style="color: #6b7280; font-size: 14px;">
+              <strong>Benefits of Gmail API:</strong><br>
+              ✓ No DKIM/SPF configuration needed<br>
+              ✓ No authentication warnings<br>
+              ✓ Sent from your real Gmail account<br>
+              ✓ Automatically authenticated
+            </p>
+          </div>
+        `,
+      });
+
+      res.json({ 
+        message: "Test email sent successfully via Gmail API! Check your inbox.",
+        messageId 
+      });
+    } catch (error: any) {
+      console.error("Error sending test email via Gmail:", error);
+      res.status(500).json({ 
+        message: "Failed to send test email", 
+        error: error.message 
+      });
+    }
+  });
+
+  app.post('/api/gmail/send', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settings = await storage.getCalendarSettings(userId);
+
+      if (!settings || !settings.accessToken || !settings.refreshToken) {
+        return res.status(400).json({ message: "Google account not connected. Please connect to Google Calendar first." });
+      }
+
+      const { GmailService } = await import('./gmailService.js');
+      const gmailService = new GmailService(settings);
+
+      const { to, subject, html, text } = req.body;
+
+      if (!to || !subject) {
+        return res.status(400).json({ message: "Missing required fields: to, subject" });
+      }
+
+      // Support multiple recipients
+      const recipients = Array.isArray(to) ? to : [to];
+      const messageIds = await gmailService.sendBulkEmail({
+        recipients,
+        subject,
+        html,
+        text,
+      });
+
+      res.json({ 
+        message: "Email(s) sent successfully via Gmail API",
+        messageIds 
+      });
+    } catch (error: any) {
+      console.error("Error sending email via Gmail:", error);
+      res.status(500).json({ 
+        message: "Failed to send email", 
+        error: error.message 
+      });
+    }
+  });
+
   // Zoom integration routes
   app.post('/api/cases/:caseId/zoom-meeting', isAuthenticated, async (req: any, res) => {
     try {
