@@ -1033,18 +1033,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Google account not connected. Please connect to Google Calendar first." });
       }
 
-      // Get user email from database
-      const user = await storage.getUser(userId);
-      if (!user || !user.email) {
-        return res.status(400).json({ message: "User email not found. Please update your profile." });
-      }
-
       const { GmailService } = await import('./gmailService.js');
       const gmailService = new GmailService(settings);
 
-      // Send test email to the user's own email address
+      // Send test email to danny@mediator.life
       const messageId = await gmailService.sendEmail({
-        to: user.email,
+        to: 'danny@mediator.life',
         subject: 'Gmail API Test Email - Mediator Pro',
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
