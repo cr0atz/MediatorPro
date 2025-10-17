@@ -43,7 +43,9 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Only secure in production
+      // For self-hosted: don't require secure cookies (Apache/nginx handle SSL)
+      // For Replit: use secure cookies in production
+      secure: isSelfHosted ? false : process.env.NODE_ENV === 'production',
       sameSite: 'lax', // Allow cookies to be sent on redirects
       maxAge: sessionTtl,
     },
