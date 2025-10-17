@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { SmtpSettings, EmailTemplate, InsertSmtpSettings, InsertEmailTemplate, ZoomSettings, CalendarSettings, InsertZoomSettings, InsertCalendarSettings } from "@shared/schema";
@@ -273,7 +274,11 @@ export default function Settings() {
   });
 
   // Calendar connection status
-  const { data: calendarConnectionStatus } = useQuery<{ connected: boolean }>({
+  const { data: calendarConnectionStatus } = useQuery<{ 
+    connected: boolean; 
+    scopes?: string[]; 
+    hasGmailScope?: boolean 
+  }>({
     queryKey: ['/api/calendar/connection-status'],
   });
 
@@ -510,38 +515,49 @@ export default function Settings() {
                         />
                       </div>
 
-                      <div className="flex items-center gap-4 pt-4 border-t">
-                        <Button 
-                          type="submit" 
-                          disabled={smtpMutation.isPending}
-                          data-testid="button-save-smtp"
-                        >
-                          <Save className="w-4 h-4 mr-2" />
-                          {smtpMutation.isPending ? 'Saving...' : 'Save Settings'}
-                        </Button>
-                        {smtpSettings && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => testSmtpMutation.mutate()}
-                            disabled={testSmtpMutation.isPending}
-                            data-testid="button-test-smtp"
+                      <div className="space-y-4 pt-4 border-t">
+                        <div className="flex items-center gap-4">
+                          <Button 
+                            type="submit" 
+                            disabled={smtpMutation.isPending}
+                            data-testid="button-save-smtp"
                           >
-                            <TestTube className="w-4 h-4 mr-2" />
-                            {testSmtpMutation.isPending ? 'Testing...' : 'Test SMTP'}
+                            <Save className="w-4 h-4 mr-2" />
+                            {smtpMutation.isPending ? 'Saving...' : 'Save Settings'}
                           </Button>
-                        )}
-                        {calendarConnectionStatus?.connected && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => testGmailMutation.mutate()}
-                            disabled={testGmailMutation.isPending}
-                            data-testid="button-test-gmail"
-                          >
-                            <Mail className="w-4 h-4 mr-2" />
-                            {testGmailMutation.isPending ? 'Sending...' : 'Test Gmail API'}
-                          </Button>
+                          {smtpSettings && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => testSmtpMutation.mutate()}
+                              disabled={testSmtpMutation.isPending}
+                              data-testid="button-test-smtp"
+                            >
+                              <TestTube className="w-4 h-4 mr-2" />
+                              {testSmtpMutation.isPending ? 'Testing...' : 'Test SMTP'}
+                            </Button>
+                          )}
+                          {calendarConnectionStatus?.connected && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => testGmailMutation.mutate()}
+                              disabled={testGmailMutation.isPending}
+                              data-testid="button-test-gmail"
+                            >
+                              <Mail className="w-4 h-4 mr-2" />
+                              {testGmailMutation.isPending ? 'Sending...' : 'Test Gmail API'}
+                            </Button>
+                          )}
+                        </div>
+                        
+                        {calendarConnectionStatus?.connected && !calendarConnectionStatus?.hasGmailScope && (
+                          <Alert className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+                            <Mail className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+                            <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                              Your Google connection is missing Gmail permissions. To use Gmail API, go to the Google Calendar tab, disconnect, and reconnect to grant Gmail access.
+                            </AlertDescription>
+                          </Alert>
                         )}
                       </div>
                     </form>
