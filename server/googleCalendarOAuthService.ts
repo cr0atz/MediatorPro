@@ -42,11 +42,15 @@ export class GoogleCalendarOAuthService {
     this.calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
   }
 
-  // Generate OAuth URL for user consent
+  // Generate OAuth URL for user consent (includes both Calendar and Gmail)
   getAuthUrl(state: string): string {
     return this.oauth2Client.generateAuthUrl({
       access_type: 'offline',
-      scope: ['https://www.googleapis.com/auth/calendar'],
+      scope: [
+        'https://www.googleapis.com/auth/calendar',
+        'https://www.googleapis.com/auth/gmail.send',
+        'https://www.googleapis.com/auth/gmail.compose',
+      ],
       state,
       prompt: 'consent', // Force consent to get refresh token
     });

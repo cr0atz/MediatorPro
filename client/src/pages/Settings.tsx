@@ -156,6 +156,26 @@ export default function Settings() {
     },
   });
 
+  // Test Gmail API connection mutation
+  const testGmailMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('POST', '/api/gmail/test', {});
+    },
+    onSuccess: () => {
+      toast({
+        title: "Gmail Test Successful",
+        description: "Test email sent successfully via Gmail API! Check your inbox.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Gmail Test Failed",
+        description: error?.message || "Unable to send email via Gmail. Please connect to Google Calendar first.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Create/Update email template mutation
   const templateMutation = useMutation({
     mutationFn: async (data: InsertEmailTemplate) => {
@@ -508,7 +528,19 @@ export default function Settings() {
                             data-testid="button-test-smtp"
                           >
                             <TestTube className="w-4 h-4 mr-2" />
-                            {testSmtpMutation.isPending ? 'Testing...' : 'Test Connection'}
+                            {testSmtpMutation.isPending ? 'Testing...' : 'Test SMTP'}
+                          </Button>
+                        )}
+                        {calendarConnectionStatus?.connected && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => testGmailMutation.mutate()}
+                            disabled={testGmailMutation.isPending}
+                            data-testid="button-test-gmail"
+                          >
+                            <Mail className="w-4 h-4 mr-2" />
+                            {testGmailMutation.isPending ? 'Sending...' : 'Test Gmail API'}
                           </Button>
                         )}
                       </div>

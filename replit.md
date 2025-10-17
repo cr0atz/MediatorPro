@@ -24,9 +24,10 @@ The platform features a custom design system based on Shadcn's "New York" style 
 
 ### Technical Implementations
 Key technical implementations include:
-- **Email System**: SMTP configuration and a full CRUD interface for managing email templates. A comprehensive placeholder replacement system allows for dynamic data injection into emails.
+- **Email System**: Dual email support with both SMTP configuration and Gmail API integration. Includes a full CRUD interface for managing email templates with comprehensive placeholder replacement system for dynamic data injection. Gmail API integration uses the same OAuth2 credentials as Google Calendar, eliminating the need for DKIM/SPF configuration and preventing authentication warnings.
 - **Zoom Integration**: Secure server-to-server OAuth for Zoom, enabling on-demand meeting creation and deletion, with meeting links and passwords integrated into case data and email templates.
 - **Google Calendar Integration**: OAuth-based integration for two-way synchronization of events, allowing cases to be synced to calendars and new cases to be created from calendar events. It stores OAuth tokens securely and uses the user's own Google API credentials.
+- **Gmail API Integration**: Uses the same OAuth2 setup as Google Calendar for sending authenticated emails. Supports test emails and bulk email sending without requiring DKIM/SPF DNS configuration. Emails are sent from the user's Gmail account with full authentication.
 - **AI Analysis**: Integration with OpenAI API for document analysis, OCR, entity extraction, and AI-powered Q&A, with "Send to Case Notes" and "Re-Parse" functionalities.
 - **Party Management**: Manual "Add Party" dialog for comprehensive input of party and legal representative details, complementing AI extraction.
 - **Icon System**: Migration from Font Awesome to Lucide React for better browser compatibility.
