@@ -19,6 +19,10 @@ export class GoogleCalendarOAuthService {
       redirectUri = `https://${process.env.REPLIT_DEV_DOMAIN}/api/calendar/oauth/callback`;
     }
     
+    console.log('Google Calendar OAuth Redirect URI:', redirectUri);
+    console.log('PRODUCTION_DOMAIN:', process.env.PRODUCTION_DOMAIN);
+    console.log('REPLIT_DEV_DOMAIN:', process.env.REPLIT_DEV_DOMAIN);
+    
     this.oauth2Client = new google.auth.OAuth2(
       settings.clientId,
       settings.clientSecret,
