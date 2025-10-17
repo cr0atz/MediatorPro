@@ -1036,9 +1036,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { GmailService } = await import('./gmailService.js');
       const gmailService = new GmailService(settings);
 
-      // Send test email
+      // Send test email to danny@mediator.life
       const messageId = await gmailService.sendEmail({
-        to: req.body.email || 'me',
+        to: 'danny@mediator.life',
         subject: 'Gmail API Test Email - Mediator Pro',
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
