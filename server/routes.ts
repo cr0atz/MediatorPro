@@ -726,12 +726,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!settings) {
         return res.status(404).json({ message: "SMTP settings not found" });
       }
-      // TODO: Implement actual SMTP connection test
-      // For now, just return success if settings exist
-      res.json({ message: "SMTP connection test successful" });
-    } catch (error) {
+
+      // Import nodemailer dynamically
+      const nodemailer = await import('nodemailer');
+      
+      // Create transporter with user's SMTP settings
+      const transporter = nodemailer.default.createTransport({
+        host: settings.host,
+        port: settings.port,
+        secure: settings.port === 465, // true for 465, false for other ports
+        auth: {
+          user: settings.username,
+          pass: settings.password,
+        },
+      });
+
+      // Send test email
+      const info = await transporter.sendMail({
+        from: `"${settings.fromName}" <${settings.fromEmail}>`,
+        to: settings.fromEmail, // Send test email to the sender
+        subject: "SMTP Test Email - Mediator Pro",
+        text: "This is a test email from Mediator Pro. If you received this, your SMTP settings are working correctly!",
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
+            <h2 style="color: #2563eb;">SMTP Test Successful!</h2>
+            <p>This is a test email from Mediator Pro.</p>
+            <p>If you received this email, your SMTP configuration is working correctly.</p>
+            <hr style="border: 1px solid #e5e7eb; margin: 20px 0;">
+            <p style="color: #6b7280; font-size: 14px;">
+              <strong>Configuration Details:</strong><br>
+              SMTP Host: ${settings.host}<br>
+              Port: ${settings.port}<br>
+              From: ${settings.fromName} &lt;${settings.fromEmail}&gt;
+            </p>
+          </div>
+        `,
+      });
+
+      console.log("Test email sent:", info.messageId);
+      res.json({ 
+        message: "SMTP connection test successful! Check your inbox for the test email.",
+        messageId: info.messageId 
+      });
+    } catch (error: any) {
       console.error("Error testing SMTP connection:", error);
-      res.status(500).json({ message: "Failed to test SMTP connection" });
+      res.status(500).json({ 
+        message: "Failed to test SMTP connection", 
+        error: error.message 
+      });
     }
   });
 
