@@ -8,9 +8,16 @@ export class GoogleCalendarOAuthService {
 
   constructor(settings: CalendarSettings) {
     // Create OAuth2 client with user's credentials
-    const redirectUri = process.env.REPLIT_DEV_DOMAIN 
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}/api/calendar/oauth/callback`
-      : 'http://localhost:5000/api/calendar/oauth/callback';
+    // Priority: PRODUCTION_DOMAIN > REPLIT_DEV_DOMAIN > localhost
+    let redirectUri = 'http://localhost:5000/api/calendar/oauth/callback';
+    
+    if (process.env.PRODUCTION_DOMAIN) {
+      // For production self-hosted deployments (e.g., https://pro.mediator.life)
+      redirectUri = `https://${process.env.PRODUCTION_DOMAIN}/api/calendar/oauth/callback`;
+    } else if (process.env.REPLIT_DEV_DOMAIN) {
+      // For Replit deployments
+      redirectUri = `https://${process.env.REPLIT_DEV_DOMAIN}/api/calendar/oauth/callback`;
+    }
     
     this.oauth2Client = new google.auth.OAuth2(
       settings.clientId,
