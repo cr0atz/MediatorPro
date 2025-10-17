@@ -307,8 +307,34 @@ export default function Settings() {
     },
   });
 
+  // OAuth disconnect mutation
+  const calendarDisconnectMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('POST', '/api/calendar/oauth/disconnect', {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/calendar-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/calendar/connection-status'] });
+      toast({
+        title: "Disconnected",
+        description: "Successfully disconnected from Google Calendar.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to disconnect from Google Calendar.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleConnectCalendar = () => {
     calendarOAuthMutation.mutate();
+  };
+
+  const handleDisconnectCalendar = () => {
+    calendarDisconnectMutation.mutate();
   };
 
   const onSmtpSubmit = (data: InsertSmtpSettings) => {
@@ -722,7 +748,18 @@ export default function Settings() {
                                 </>
                               )}
                             </div>
-                            {!calendarConnectionStatus?.connected && (
+                            {calendarConnectionStatus?.connected ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleDisconnectCalendar}
+                                disabled={calendarDisconnectMutation.isPending}
+                                data-testid="button-disconnect-calendar"
+                              >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                {calendarDisconnectMutation.isPending ? 'Disconnecting...' : 'Disconnect'}
+                              </Button>
+                            ) : (
                               <Button
                                 type="button"
                                 variant="outline"
