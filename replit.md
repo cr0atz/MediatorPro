@@ -14,7 +14,7 @@ Preferred communication style: Simple, everyday language.
 The frontend is built with React 18 and TypeScript, utilizing Vite for fast development. It's a Single-Page Application (SPA) with Wouter for routing. UI components are built using Shadcn/ui (based on Radix UI) and styled with Tailwind CSS, supporting both light and dark themes. TanStack Query manages server state and caching, while React Hook Form with Zod handles form validation.
 
 ### Backend Architecture
-The backend uses Express.js with Node.js and TypeScript, designed with RESTful APIs. Authentication is handled via Replit Authentication (OpenID Connect) and Passport.js, with PostgreSQL-backed session storage. API routes are organized by feature domain, include middleware-based authentication, and provide consistent error responses. File uploads are managed by Multer, supporting PDF, DOC, and DOCX formats.
+The backend uses Express.js with Node.js and TypeScript, designed with RESTful APIs. Authentication supports both Replit Authentication (OpenID Connect) for cloud deployments and auto-bypass mode for self-hosted deployments. Session management uses Passport.js with PostgreSQL-backed session storage. API routes are organized by feature domain, include middleware-based authentication, and provide consistent error responses. File uploads are managed by Multer, supporting PDF, DOC, and DOCX formats.
 
 ### Data Storage Solutions
 The primary database is PostgreSQL with Drizzle ORM for type-safe queries. The schema includes Users, Cases, Parties, Documents, Case Notes, AI Analyses, and Sessions, with clear relationships. For self-hosted deployments, documents are stored in local file system with a custom LocalFileStorageService that implements secure file access control and path traversal prevention. For Replit/cloud deployments, Google Cloud Storage can be used as an alternative.
@@ -31,6 +31,7 @@ Key technical implementations include:
 - **Party Management**: Manual "Add Party" dialog for comprehensive input of party and legal representative details, complementing AI extraction.
 - **Icon System**: Migration from Font Awesome to Lucide React for better browser compatibility.
 - **Local File Storage**: Secure local file system storage with LocalFileStorageService implementing ACL-based access control and robust path traversal prevention using path.relative() containment checks.
+- **Self-Hosted Authentication**: Automatic authentication bypass mode for self-hosted deployments - when REPL_ID is not set, the system creates a default admin user and skips OIDC authentication entirely.
 
 ## External Dependencies
 

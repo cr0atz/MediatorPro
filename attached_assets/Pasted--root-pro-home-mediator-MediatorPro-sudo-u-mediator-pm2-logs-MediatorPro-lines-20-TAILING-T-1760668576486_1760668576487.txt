@@ -1,0 +1,59 @@
+
+root@pro:/home/mediator/MediatorPro# sudo -u mediator pm2 logs MediatorPro --lines 20
+[TAILING] Tailing last 20 lines for [MediatorPro] process (change the value with --lines option)
+/home/mediator/MediatorPro/logs/out-0.log last 20 lines:
+/home/mediator/MediatorPro/logs/out-1.log last 20 lines:
+/home/mediator/MediatorPro/logs/error-0.log last 20 lines:
+0|Mediator | TypeError: "clientId" must be a non-empty string
+0|Mediator |     at CodedTypeError (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:89:17)
+0|Mediator |     at new Configuration (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:463:19)
+0|Mediator |     at Module.discovery (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:244:22)
+0|Mediator |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|Mediator |     at async memoize.maxAge (file:///home/mediator/MediatorPro/dist/index.js:873:12)
+0|Mediator |     at async setupAuth (file:///home/mediator/MediatorPro/dist/index.js:921:18)
+0|Mediator |     at async registerRoutes (file:///home/mediator/MediatorPro/dist/index.js:1774:3)
+0|Mediator |     at async file:///home/mediator/MediatorPro/dist/index.js:2968:18
+0|Mediator | 2025-10-17T02:27:29: API key does not start with "SG.".
+0|Mediator | You have triggered an unhandledRejection, you may have forgotten to catch a Promise rejection:
+0|Mediator | TypeError: "clientId" must be a non-empty string
+0|Mediator |     at CodedTypeError (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:89:17)
+0|Mediator |     at new Configuration (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:463:19)
+0|Mediator |     at Module.discovery (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:244:22)
+0|Mediator |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|Mediator |     at async memoize.maxAge (file:///home/mediator/MediatorPro/dist/index.js:873:12)
+0|Mediator |     at async setupAuth (file:///home/mediator/MediatorPro/dist/index.js:921:18)
+0|Mediator |     at async registerRoutes (file:///home/mediator/MediatorPro/dist/index.js:1774:3)
+0|Mediator |     at async file:///home/mediator/MediatorPro/dist/index.js:2968:18
+
+/home/mediator/MediatorPro/logs/error-1.log last 20 lines:
+1|Mediator | You have triggered an unhandledRejection, you may have forgotten to catch a Promise rejection:
+1|Mediator | TypeError: "clientId" must be a non-empty string
+1|Mediator |     at CodedTypeError (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:89:17)
+1|Mediator |     at new Configuration (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:463:19)
+1|Mediator |     at Module.discovery (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:244:22)
+1|Mediator |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+1|Mediator |     at async memoize.maxAge (file:///home/mediator/MediatorPro/dist/index.js:873:12)
+1|Mediator |     at async setupAuth (file:///home/mediator/MediatorPro/dist/index.js:921:18)
+1|Mediator |     at async registerRoutes (file:///home/mediator/MediatorPro/dist/index.js:1774:3)
+1|Mediator |     at async file:///home/mediator/MediatorPro/dist/index.js:2968:18
+1|Mediator | You have triggered an unhandledRejection, you may have forgotten to catch a Promise rejection:
+1|Mediator | TypeError: "clientId" must be a non-empty string
+1|Mediator |     at CodedTypeError (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:89:17)
+1|Mediator |     at new Configuration (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:463:19)
+1|Mediator |     at Module.discovery (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:244:22)
+1|Mediator |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+1|Mediator |     at async memoize.maxAge (file:///home/mediator/MediatorPro/dist/index.js:873:12)
+1|Mediator |     at async setupAuth (file:///home/mediator/MediatorPro/dist/index.js:921:18)
+1|Mediator |     at async registerRoutes (file:///home/mediator/MediatorPro/dist/index.js:1775:3)
+1|Mediator |     at async file:///home/mediator/MediatorPro/dist/index.js:2969:18
+
+0|MediatorPro  | You have triggered an unhandledRejection, you may have forgotten to catch a Promise rejection:
+0|MediatorPro  | TypeError: "clientId" must be a non-empty string
+0|MediatorPro  |     at CodedTypeError (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:89:17)
+0|MediatorPro  |     at new Configuration (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:463:19)
+0|MediatorPro  |     at Module.discovery (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:244:22)
+0|MediatorPro  |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|MediatorPro  |     at async memoize.maxAge (file:///home/mediator/MediatorPro/dist/index.js:873:12)
+0|MediatorPro  |     at async setupAuth (file:///home/mediator/MediatorPro/dist/index.js:921:18)
+0|MediatorPro  |     at async registerRoutes (file:///home/mediator/MediatorPro/dist/index.js:1775:3)
+0|MediatorPro  |     at async file:///home/mediator/MediatorPro/dist/index.js:2969:18
