@@ -998,6 +998,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/calendar/oauth/disconnect', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settings = await storage.getCalendarSettings(userId);
+
+      if (!settings) {
+        return res.status(404).json({ message: "Calendar settings not found" });
+      }
+
+      // Clear the OAuth tokens
+      await storage.updateCalendarSettings(userId, {
+        ...settings,
+        accessToken: null,
+        refreshToken: null,
+        scope: null,
+        expiryDate: null,
+      });
+
+      res.json({ message: "Successfully disconnected from Google Calendar" });
+    } catch (error) {
+      console.error("Error disconnecting from Google Calendar:", error);
+      res.status(500).json({ message: "Failed to disconnect from Google Calendar" });
+    }
+  });
+
   // Gmail integration routes
   app.post('/api/gmail/test', isAuthenticated, async (req: any, res) => {
     try {
