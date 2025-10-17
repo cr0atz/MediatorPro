@@ -35,7 +35,7 @@ Key technical implementations include:
 ## External Dependencies
 
 - **AI & Machine Learning**: OpenAI API (GPT-5) for document analysis, OCR, entity extraction, and AI-powered Q&A.
-- **Email Services**: Custom SMTP configuration (SendGrid, Gmail, Office365, etc.) for transactional email delivery.
+- **Email Services**: Custom SMTP configuration (Gmail, Office365, etc.) for transactional email delivery.
 - **File Storage**: Local file system (self-hosted) with secure ACL implementation, or Google Cloud Storage (cloud deployments).
 - **Database**: PostgreSQL (self-hosted in Docker or native) or Neon PostgreSQL (serverless cloud).
 - **File Upload**: Uppy file upload library.

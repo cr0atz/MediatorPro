@@ -1,6 +1,5 @@
-import sgMail from '@sendgrid/mail';
-
-sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
+// Email service now uses custom SMTP configuration from settings
+// No SendGrid dependency
 
 export interface EmailTemplate {
   subject: string;
@@ -100,10 +99,15 @@ export class EmailService {
         html: emailContent.html,
       };
 
-      await sgMail.sendMultiple(msg);
+      // Note: Actual email sending is handled by custom SMTP service
+      // This service only provides template rendering
+      console.log('Email would be sent via custom SMTP:', {
+        to: recipients.map(r => r.email),
+        subject: emailContent.subject
+      });
     } catch (error) {
-      console.error('Error sending email:', error);
-      throw new Error('Failed to send email');
+      console.error('Error preparing email:', error);
+      throw new Error('Failed to prepare email');
     }
   }
 

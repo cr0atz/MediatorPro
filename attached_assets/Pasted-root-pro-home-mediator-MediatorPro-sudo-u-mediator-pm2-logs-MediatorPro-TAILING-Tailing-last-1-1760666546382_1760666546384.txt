@@ -1,0 +1,37 @@
+root@pro:/home/mediator/MediatorPro# sudo -u mediator pm2 logs MediatorPro
+[TAILING] Tailing last 15 lines for [MediatorPro] process (change the value with --lines option)
+/home/mediator/MediatorPro/logs/out-0.log last 15 lines:
+/home/mediator/MediatorPro/logs/out-1.log last 15 lines:
+/home/mediator/MediatorPro/logs/error-0.log last 15 lines:
+0|Mediator | Error: DATABASE_URL must be set. Did you forget to provision a database?
+0|Mediator |     at file:///home/mediator/MediatorPro/dist/index.js:707:9
+0|Mediator |     at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+0|Mediator |     at async ModuleLoader.import (node:internal/modules/esm/loader:606:24)
+0|Mediator | 2025-10-17T02:00:52: API key does not start with "SG.".
+0|Mediator | You have triggered an unhandledRejection, you may have forgotten to catch a Promise rejection:
+0|Mediator | TypeError: "clientId" must be a non-empty string
+0|Mediator |     at CodedTypeError (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:89:17)
+0|Mediator |     at new Configuration (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:463:19)
+0|Mediator |     at Module.discovery (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:244:22)
+0|Mediator |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|Mediator |     at async memoize.maxAge (file:///home/mediator/MediatorPro/dist/index.js:873:12)
+0|Mediator |     at async setupAuth (file:///home/mediator/MediatorPro/dist/index.js:921:18)
+0|Mediator |     at async registerRoutes (file:///home/mediator/MediatorPro/dist/index.js:1774:3)
+0|Mediator |     at async file:///home/mediator/MediatorPro/dist/index.js:2968:18
+
+/home/mediator/MediatorPro/logs/error-1.log last 15 lines:
+1|Mediator | Error: DATABASE_URL must be set. Did you forget to provision a database?
+1|Mediator |     at file:///home/mediator/MediatorPro/dist/index.js:707:9
+1|Mediator |     at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+1|Mediator |     at async ModuleLoader.import (node:internal/modules/esm/loader:606:24)
+1|Mediator | 2025-10-17T02:00:55: API key does not start with "SG.".
+1|Mediator | You have triggered an unhandledRejection, you may have forgotten to catch a Promise rejection:
+1|Mediator | TypeError: "clientId" must be a non-empty string
+1|Mediator |     at CodedTypeError (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:89:17)
+1|Mediator |     at new Configuration (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:463:19)
+1|Mediator |     at Module.discovery (file:///home/mediator/MediatorPro/node_modules/openid-client/build/index.js:244:22)
+1|Mediator |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+1|Mediator |     at async memoize.maxAge (file:///home/mediator/MediatorPro/dist/index.js:873:12)
+1|Mediator |     at async setupAuth (file:///home/mediator/MediatorPro/dist/index.js:921:18)
+1|Mediator |     at async registerRoutes (file:///home/mediator/MediatorPro/dist/index.js:1774:3)
+1|Mediator |     at async file:///home/mediator/MediatorPro/dist/index.js:2968:18

@@ -50,7 +50,7 @@ An intelligent case management system designed specifically for legal mediators,
 
 ### Integrations
 - **AI**: OpenAI API (GPT-5)
-- **Email**: SendGrid SMTP
+- **Email**: Custom SMTP (Gmail, Office365, etc.)
 - **Storage**: Local file system (self-hosted) or Google Cloud Storage (cloud)
 - **Video**: Zoom API (Server-to-Server OAuth)
 - **Calendar**: Google Calendar API (OAuth 2.0)
@@ -66,7 +66,7 @@ An intelligent case management system designed specifically for legal mediators,
 - PostgreSQL 14+ database
 - Google Cloud Platform account (for Calendar & Storage APIs)
 - OpenAI API key
-- SendGrid account (optional, for email)
+- Custom SMTP server (optional, for email)
 - Zoom account with Server-to-Server OAuth app (optional, for video)
 
 ## 🚀 Quick Start (Development)
