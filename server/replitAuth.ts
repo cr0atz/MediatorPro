@@ -8,12 +8,14 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
-}
+// Check if this is a self-hosted deployment (no Replit auth)
+const isSelfHosted = !process.env.REPL_ID || process.env.REPL_ID === 'self-hosted' || !process.env.REPLIT_DOMAINS;
 
 const getOidcConfig = memoize(
   async () => {
+    if (isSelfHosted) {
+      return null; // Skip OIDC for self-hosted
+    }
     return await client.discovery(
       new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
       process.env.REPL_ID!
@@ -72,7 +74,46 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  if (isSelfHosted) {
+    // Self-hosted mode: Create default user and bypass auth
+    console.log("Running in self-hosted mode - authentication bypassed");
+    
+    // Create a default self-hosted user
+    const defaultUser = {
+      id: 'self-hosted-user',
+      email: 'admin@localhost',
+      firstName: 'Admin',
+      lastName: 'User',
+      profileImageUrl: null
+    };
+    
+    await storage.upsertUser(defaultUser);
+    
+    passport.serializeUser((user: Express.User, cb) => cb(null, user));
+    passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+    
+    // Auto-login for self-hosted
+    app.get("/api/login", async (req, res) => {
+      req.login({ claims: { sub: defaultUser.id } }, (err) => {
+        if (err) return res.status(500).send('Login failed');
+        res.redirect('/');
+      });
+    });
+    
+    app.get("/api/logout", (req, res) => {
+      req.logout(() => {
+        res.redirect('/');
+      });
+    });
+    
+    return;
+  }
+
   const config = await getOidcConfig();
+  
+  if (!config) {
+    throw new Error("OIDC configuration is null - this should not happen in Replit mode");
+  }
 
   const verify: VerifyFunction = async (
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
@@ -117,6 +158,9 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/logout", (req, res) => {
     req.logout(() => {
+      if (!config) {
+        return res.redirect('/');
+      }
       res.redirect(
         client.buildEndSessionUrl(config, {
           client_id: process.env.REPL_ID!,
@@ -129,6 +173,20 @@ export async function setupAuth(app: Express) {
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
+
+  // Self-hosted mode: bypass authentication
+  if (isSelfHosted) {
+    if (!req.isAuthenticated()) {
+      // Auto-authenticate with default user
+      req.login({ claims: { sub: 'self-hosted-user' } }, (err) => {
+        if (err) return res.status(401).json({ message: "Unauthorized" });
+        return next();
+      });
+    } else {
+      return next();
+    }
+    return;
+  }
 
   if (!req.isAuthenticated() || !user.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
@@ -147,6 +205,9 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 
   try {
     const config = await getOidcConfig();
+    if (!config) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
     updateUserSession(user, tokenResponse);
     return next();
