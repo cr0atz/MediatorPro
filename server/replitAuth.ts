@@ -1,5 +1,7 @@
 import * as client from "openid-client";
 import { Strategy, type VerifyFunction } from "openid-client/passport";
+import { Strategy as LocalStrategy } from "passport-local";
+import bcrypt from "bcryptjs";
 
 import passport from "passport";
 import session from "express-session";
@@ -9,7 +11,8 @@ import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
 // Check if this is a self-hosted deployment (no Replit auth)
-const isSelfHosted = !process.env.REPL_ID || process.env.REPL_ID === 'self-hosted' || !process.env.REPLIT_DOMAINS;
+// USE_LOCAL_AUTH=true can force local auth even in Replit for testing
+const isSelfHosted = process.env.USE_LOCAL_AUTH === 'true' || !process.env.REPL_ID || process.env.REPL_ID === 'self-hosted' || !process.env.REPLIT_DOMAINS;
 
 const getOidcConfig = memoize(
   async () => {
@@ -40,7 +43,8 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production', // Only secure in production
+      sameSite: 'lax', // Allow cookies to be sent on redirects
       maxAge: sessionTtl,
     },
   });
@@ -75,34 +79,87 @@ export async function setupAuth(app: Express) {
   app.use(passport.session());
 
   if (isSelfHosted) {
-    // Self-hosted mode: Create default user and bypass auth
-    console.log("Running in self-hosted mode - authentication bypassed");
+    // Self-hosted mode: Use local authentication with username/password
+    console.log("Running in self-hosted mode - using local authentication");
     
-    // Create a default self-hosted user
+    // Create default admin user if not exists
+    const defaultUsername = process.env.ADMIN_USERNAME || 'danny';
+    const defaultPassword = process.env.ADMIN_PASSWORD || 'DJ6146dj!';
+    const passwordHash = await bcrypt.hash(defaultPassword, 10);
+    
     const defaultUser = {
-      id: 'self-hosted-user',
-      email: 'admin@localhost',
-      firstName: 'Admin',
-      lastName: 'User',
-      profileImageUrl: null
+      id: defaultUsername,
+      email: `${defaultUsername}@localhost`,
+      firstName: 'Danny',
+      lastName: 'Admin',
+      profileImageUrl: null,
+      passwordHash,
+      isLocal: true
     };
     
-    await storage.upsertUser(defaultUser);
+    // Only create if doesn't exist
+    const existingUser = await storage.getUser(defaultUsername);
+    if (!existingUser) {
+      await storage.upsertUser(defaultUser);
+      console.log(`Default admin user created. Username: ${defaultUsername}, Password: ${defaultPassword}`);
+    }
+    
+    // Configure local strategy
+    passport.use(new LocalStrategy(
+      { usernameField: 'username', passwordField: 'password' },
+      async (username, password, done) => {
+        try {
+          // For self-hosted, username is the user ID
+          const user = await storage.getUser(username);
+          
+          if (!user || !user.passwordHash) {
+            return done(null, false, { message: 'Invalid credentials' });
+          }
+          
+          const isValid = await bcrypt.compare(password, user.passwordHash);
+          if (!isValid) {
+            return done(null, false, { message: 'Invalid credentials' });
+          }
+          
+          return done(null, { claims: { sub: user.id } });
+        } catch (error) {
+          return done(error);
+        }
+      }
+    ));
     
     passport.serializeUser((user: Express.User, cb) => cb(null, user));
     passport.deserializeUser((user: Express.User, cb) => cb(null, user));
     
-    // Auto-login for self-hosted
-    app.get("/api/login", async (req, res) => {
-      req.login({ claims: { sub: defaultUser.id } }, (err) => {
-        if (err) return res.status(500).send('Login failed');
-        res.redirect('/');
-      });
+    // Login route - POST for form submission
+    app.post("/api/login", (req, res, next) => {
+      passport.authenticate('local', (err: any, user: any, info: any) => {
+        if (err) {
+          return res.status(500).json({ error: 'Authentication error' });
+        }
+        if (!user) {
+          return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        req.logIn(user, (err) => {
+          if (err) {
+            return res.status(500).json({ error: 'Login failed' });
+          }
+          // Save session before sending response to ensure cookie is set
+          req.session.save((err) => {
+            if (err) {
+              console.error('Session save error:', err);
+              return res.status(500).json({ error: 'Session save failed' });
+            }
+            return res.status(200).json({ success: true, redirect: '/' });
+          });
+        });
+      })(req, res, next);
     });
     
+    // Logout route
     app.get("/api/logout", (req, res) => {
       req.logout(() => {
-        res.redirect('/');
+        res.redirect('/login');
       });
     });
     
@@ -174,18 +231,12 @@ export async function setupAuth(app: Express) {
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
 
-  // Self-hosted mode: bypass authentication
+  // Self-hosted mode: require local authentication
   if (isSelfHosted) {
     if (!req.isAuthenticated()) {
-      // Auto-authenticate with default user
-      req.login({ claims: { sub: 'self-hosted-user' } }, (err) => {
-        if (err) return res.status(401).json({ message: "Unauthorized" });
-        return next();
-      });
-    } else {
-      return next();
+      return res.status(401).json({ message: "Unauthorized" });
     }
-    return;
+    return next();
   }
 
   if (!req.isAuthenticated() || !user.expires_at) {

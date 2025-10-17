@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Home from "@/pages/Home";
-import Landing from "@/pages/Landing";
+import Login from "@/pages/Login";
 import Documents from "@/pages/Documents";
 import AIAssistant from "@/pages/AIAssistant";
 import Calendar from "@/pages/CalendarMonthView";
@@ -19,9 +19,21 @@ function Router() {
   return (
     <Switch>
       {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
+        <>
+          {/* Public routes for unauthenticated users */}
+          <Route path="/login" component={Login} />
+          <Route path="/" component={Login} />
+          <Route component={Login} />
+        </>
       ) : (
         <>
+          {/* Protected routes for authenticated users */}
+          <Route path="/login">
+            {() => {
+              window.location.href = '/';
+              return null;
+            }}
+          </Route>
           <Route path="/" component={Home} />
           <Route path="/cases" component={Home} />
           <Route path="/cases/:id" component={Home} />
