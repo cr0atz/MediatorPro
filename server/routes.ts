@@ -48,7 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Local file storage routes for documents
-  app.get("/objects/:objectPath(*)", isAuthenticated, async (req, res) => {
+  app.get("/objects/:objectPath(*)", isAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     const fileStorage = new LocalFileStorageService();
     try {
@@ -977,16 +977,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const settings = await storage.getCalendarSettings(userId);
 
       if (!settings || !settings.accessToken || !settings.refreshToken) {
-        return res.json({ connected: false });
+        return res.json({ connected: false, scopes: [] });
       }
 
       const { GoogleCalendarOAuthService } = await import('./googleCalendarOAuthService.js');
       const calendarService = new GoogleCalendarOAuthService(settings);
 
-      res.json({ connected: calendarService.isConnected() });
+      // Parse scopes from stored scope string
+      const scopes = settings.scope ? settings.scope.split(' ') : [];
+      const hasGmailScope = scopes.some(s => s.includes('gmail'));
+
+      res.json({ 
+        connected: calendarService.isConnected(),
+        scopes,
+        hasGmailScope 
+      });
     } catch (error) {
       console.error("Error checking connection status:", error);
-      res.json({ connected: false });
+      res.json({ connected: false, scopes: [], hasGmailScope: false });
     }
   });
 
@@ -1030,6 +1038,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Error sending test email via Gmail:", error);
+      
+      // Check for insufficient scopes error
+      if (error.message && error.message.includes('insufficient authentication scopes')) {
+        return res.status(403).json({ 
+          message: "Your Google connection doesn't have Gmail permissions. Please disconnect and reconnect to Google Calendar to grant Gmail access.",
+          error: "Request had insufficient authentication scopes."
+        });
+      }
+      
       res.status(500).json({ 
         message: "Failed to send test email", 
         error: error.message 
