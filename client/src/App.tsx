@@ -18,13 +18,22 @@ function Router() {
 
   return (
     <Switch>
-      {/* Public route */}
-      <Route path="/login" component={Login} />
-      
       {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Login} />
+        <>
+          {/* Public routes for unauthenticated users */}
+          <Route path="/login" component={Login} />
+          <Route path="/" component={Login} />
+          <Route component={Login} />
+        </>
       ) : (
         <>
+          {/* Protected routes for authenticated users */}
+          <Route path="/login">
+            {() => {
+              window.location.href = '/';
+              return null;
+            }}
+          </Route>
           <Route path="/" component={Home} />
           <Route path="/cases" component={Home} />
           <Route path="/cases/:id" component={Home} />

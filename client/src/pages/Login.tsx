@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +7,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Scale } from "lucide-react";
 
 export default function Login() {
-  const [, setLocation] = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -100,7 +98,7 @@ export default function Login() {
               type="submit" 
               className="w-full" 
               disabled={isLoading}
-              data-testid="button-login"
+              data-testid="button-signin"
             >
               {isLoading ? "Logging in..." : "Sign In"}
             </Button>
