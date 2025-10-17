@@ -1,0 +1,98 @@
+
+/home/mediator/MediatorPro/logs/out-0.log last 50 lines:
+0|Mediator | 2025-10-17T03:28:35: 3:28:35 AM [express] GET /api/auth/user 200 in 56ms :: {"id":"self-hosted-user","email":"admin@local…
+0|Mediator | 2025-10-17T03:28:36: 3:28:36 AM [express] GET /api/smtp-settings 200 in 12ms
+0|Mediator | 2025-10-17T03:28:36: 3:28:36 AM [express] GET /api/zoom-settings 200 in 12ms
+0|Mediator | 2025-10-17T03:28:36: 3:28:36 AM [express] GET /api/calendar-settings 200 in 16ms
+0|Mediator | 2025-10-17T03:28:36: 3:28:36 AM [express] GET /api/calendar/connection-status 200 in 33ms :: {"connected":false}
+0|Mediator | 2025-10-17T03:45:37: Running in self-hosted mode - using local authentication
+0|Mediator | 2025-10-17T04:03:47: Running in self-hosted mode - using local authentication
+0|Mediator | 2025-10-17T04:03:48: Default admin user created. Username: danny, Password: DJ6146dj!
+0|Mediator | 2025-10-17T04:03:48: 4:03:48 AM [express] serving on port 5000
+0|Mediator | 2025-10-17T04:04:31: 4:04:31 AM [express] GET /api/auth/user 401 in 4ms :: {"message":"Unauthorized"}
+0|Mediator | 2025-10-17T04:04:36: 4:04:36 AM [express] POST /api/login 401 in 28ms :: {"error":"Invalid credentials"}
+0|Mediator | 2025-10-17T04:04:46: 4:04:46 AM [express] POST /api/login 401 in 25ms :: {"error":"Invalid credentials"}
+0|Mediator | 2025-10-17T04:15:11: Running in self-hosted mode - using local authentication
+0|Mediator | 2025-10-17T04:15:12: 4:15:12 AM [express] serving on port 5000
+0|Mediator | 2025-10-17T04:15:25: 4:15:25 AM [express] GET /api/auth/user 401 in 3ms :: {"message":"Unauthorized"}
+0|Mediator | 2025-10-17T04:15:44: 4:15:44 AM [express] POST /api/login 200 in 200ms :: {"success":true,"redirect":"/"}
+0|Mediator | 2025-10-17T04:15:46: 4:15:46 AM [express] GET /api/auth/user 401 in 1ms :: {"message":"Unauthorized"}
+0|Mediator | 2025-10-17T04:24:54: Running in self-hosted mode - using local authentication
+0|Mediator | 2025-10-17T04:24:54: 4:24:54 AM [express] serving on port 5000
+0|Mediator | 2025-10-17T04:25:10: 4:25:10 AM [express] GET /api/auth/user 401 in 4ms :: {"message":"Unauthorized"}
+0|Mediator | 2025-10-17T04:25:22: 4:25:22 AM [express] POST /api/login 200 in 202ms :: {"success":true,"redirect":"/"}
+0|Mediator | 2025-10-17T04:25:25: 4:25:25 AM [express] GET /api/auth/user 200 in 10ms :: {"id":"danny","email":"danny@localhost","firs…
+0|Mediator | 2025-10-17T04:25:38: 4:25:38 AM [express] GET /api/zoom-settings 200 in 88ms
+0|Mediator | 2025-10-17T04:25:38: 4:25:38 AM [express] GET /api/calendar/connection-status 304 in 89ms :: {"connected":false}
+0|Mediator | 2025-10-17T04:25:38: 4:25:38 AM [express] GET /api/email/templates 304 in 96ms :: []
+0|Mediator | 2025-10-17T04:59:27: 4:59:27 AM [express] POST /api/smtp-settings/test 200 in 52ms :: {"message":"SMTP connection test su…
+0|Mediator | 2025-10-17T05:12:48: 5:12:48 AM [express] GET /api/smtp-settings/test 200 in 4ms
+0|Mediator | 2025-10-17T05:12:53: 5:12:53 AM [express] GET /api/smtp-settings/test 200 in 2ms
+0|Mediator | 2025-10-17T05:12:54: 5:12:54 AM [express] GET /api/auth/user 401 in 2ms :: {"message":"Unauthorized"}
+0|Mediator | 2025-10-17T05:13:12: 5:13:12 AM [express] GET /api/smtp-settings 401 in 1ms :: {"message":"Unauthorized"}
+0|Mediator | 2025-10-17T05:13:14: 5:13:14 AM [express] GET /api/smtp-settings 401 in 1ms :: {"message":"Unauthorized"}
+0|Mediator | 2025-10-17T05:18:13: 5:18:13 AM [express] GET /api/auth/user 401 in 2ms :: {"message":"Unauthorized"}
+0|Mediator | 2025-10-17T05:18:14: 5:18:14 AM [express] GET /api/calendar/oauth/init 200 in 72ms :: {"authUrl":"https://accounts.google…
+0|Mediator | 2025-10-17T05:18:22: 5:18:22 AM [express] GET /api/auth/user 304 in 11ms :: {"id":"danny","email":"danny@localhost","firs…
+0|Mediator | 2025-10-17T05:18:22: 5:18:22 AM [express] GET /api/smtp-settings 304 in 9ms :: {"id":"295fee23-9d5f-43fc-9ea7-f5d15c0c018…
+0|Mediator | 2025-10-17T05:18:23: 5:18:23 AM [express] GET /api/email/templates 304 in 10ms :: []
+0|Mediator | 2025-10-17T05:18:23: 5:18:23 AM [express] GET /api/zoom-settings 304 in 8ms :: {"id":"cca30a08-181a-46c8-a81c-f2fcc7ea377…
+0|Mediator | 2025-10-17T05:18:23: 5:18:23 AM [express] GET /api/calendar-settings 304 in 6ms :: {"id":"eef0082f-5945-4ee4-afea-d5b6f5c…
+0|Mediator | 2025-10-17T05:18:23: 5:18:23 AM [express] GET /api/calendar/connection-status 304 in 6ms :: {"connected":false}
+0|Mediator | 2025-10-17T05:25:55: 5:25:55 AM [express] GET /api/calendar/oauth/callback 400 in 5ms
+0|Mediator | 2025-10-17T05:27:11: Running in self-hosted mode - using local authentication
+0|Mediator | 2025-10-17T05:27:15: Running in self-hosted mode - using local authentication
+0|Mediator | 2025-10-17T05:27:15: 5:27:15 AM [express] serving on port 5000
+0|Mediator | 2025-10-17T05:35:31: 5:35:31 AM [express] GET /api/calendar/oauth/init 401 in 5ms :: {"message":"Unauthorized"}
+0|Mediator | 2025-10-17T05:36:39: 5:36:39 AM [express] GET /api/smtp-settings 304 in 31ms :: {"id":"295fee23-9d5f-43fc-9ea7-f5d15c0c01…
+0|Mediator | 2025-10-17T05:36:39: 5:36:39 AM [express] GET /api/email/templates 304 in 10ms :: []
+0|Mediator | 2025-10-17T05:36:40: 5:36:40 AM [express] GET /api/zoom-settings 304 in 9ms :: {"id":"cca30a08-181a-46c8-a81c-f2fcc7ea377…
+0|Mediator | 2025-10-17T05:36:40: 5:36:40 AM [express] GET /api/calendar-settings 304 in 10ms :: {"id":"eef0082f-5945-4ee4-afea-d5b6f5…
+0|Mediator | 2025-10-17T05:36:40: 5:36:40 AM [express] GET /api/calendar/connection-status 304 in 7ms :: {"connected":false}
+0|Mediator | 2025-10-17T05:38:26: 5:38:26 AM [express] GET /api/calendar/oauth/init 200 in 74ms :: {"authUrl":"https://accounts.google…
+
+/home/mediator/MediatorPro/logs/out-1.log last 50 lines:
+1|Mediator | 2025-10-17T02:56:11: Running in self-hosted mode - authentication bypassed
+1|Mediator | 2025-10-17T02:56:11: 2:56:11 AM [express] serving on port 5000
+1|Mediator | 2025-10-17T02:58:06: 2:58:06 AM [express] GET /api/smtp-settings 200 in 88ms
+1|Mediator | 2025-10-17T02:58:06: 2:58:06 AM [express] GET /api/zoom-settings 200 in 81ms
+1|Mediator | 2025-10-17T03:10:25: 3:10:25 AM [express] GET /api/email/templates 200 in 57ms :: []
+1|Mediator | 2025-10-17T03:10:27: 3:10:27 AM [express] GET /api/zoom-settings 200 in 13ms
+1|Mediator | 2025-10-17T03:10:31: 3:10:31 AM [express] GET /api/calendar/connection-status 200 in 14ms :: {"connected":false}
+1|Mediator | 2025-10-17T03:11:10: 3:11:10 AM [express] GET /api/auth/user 200 in 51ms :: {"id":"self-hosted-user","email":"admin@local…
+1|Mediator | 2025-10-17T03:28:36: 3:28:36 AM [express] GET /api/email/templates 200 in 53ms :: []
+1|Mediator | 2025-10-17T03:45:37: Running in self-hosted mode - using local authentication
+1|Mediator | 2025-10-17T04:03:48: Running in self-hosted mode - using local authentication
+1|Mediator | 2025-10-17T04:03:48: 4:03:48 AM [express] serving on port 5000
+1|Mediator | 2025-10-17T04:05:17: 4:05:17 AM [express] POST /api/login 200 in 204ms :: {"success":true,"redirect":"/"}
+1|Mediator | 2025-10-17T04:05:19: 4:05:19 AM [express] GET /api/auth/user 401 in 2ms :: {"message":"Unauthorized"}
+1|Mediator | 2025-10-17T04:06:12: 4:06:12 AM [express] POST /api/login 200 in 192ms :: {"success":true,"redirect":"/"}
+1|Mediator | 2025-10-17T04:06:14: 4:06:14 AM [express] GET /api/auth/user 401 in 2ms :: {"message":"Unauthorized"}
+1|Mediator | 2025-10-17T04:15:12: Running in self-hosted mode - using local authentication
+1|Mediator | 2025-10-17T04:15:12: 4:15:12 AM [express] serving on port 5000
+1|Mediator | 2025-10-17T04:20:43: 4:20:43 AM [express] GET /api/login 200 in 4ms
+1|Mediator | 2025-10-17T04:20:48: 4:20:48 AM [express] GET /api/login 200 in 3ms
+1|Mediator | 2025-10-17T04:24:54: Running in self-hosted mode - using local authentication
+1|Mediator | 2025-10-17T04:24:54: 4:24:54 AM [express] serving on port 5000
+1|Mediator | 2025-10-17T04:25:25: 4:25:25 AM [express] GET /api/cases 200 in 35ms :: []
+1|Mediator | 2025-10-17T04:25:38: 4:25:38 AM [express] GET /api/smtp-settings 200 in 91ms
+1|Mediator | 2025-10-17T04:25:38: 4:25:38 AM [express] GET /api/calendar-settings 200 in 92ms
+1|Mediator | 2025-10-17T04:59:20: 4:59:20 AM [express] POST /api/smtp-settings 200 in 65ms :: {"id":"295fee23-9d5f-43fc-9ea7-f5d15c0c0…
+1|Mediator | 2025-10-17T04:59:20: 4:59:20 AM [express] GET /api/smtp-settings 200 in 9ms :: {"id":"295fee23-9d5f-43fc-9ea7-f5d15c0c018…
+1|Mediator | 2025-10-17T05:11:44: 5:11:44 AM [express] POST /api/zoom-settings 200 in 57ms :: {"id":"cca30a08-181a-46c8-a81c-f2fcc7ea3…
+1|Mediator | 2025-10-17T05:11:45: 5:11:45 AM [express] GET /api/zoom-settings 200 in 8ms :: {"id":"cca30a08-181a-46c8-a81c-f2fcc7ea377…
+1|Mediator | 2025-10-17T05:16:13: 5:16:13 AM [express] POST /api/calendar-settings 200 in 52ms :: {"id":"eef0082f-5945-4ee4-afea-d5b6f…
+1|Mediator | 2025-10-17T05:16:14: 5:16:14 AM [express] GET /api/calendar-settings 200 in 8ms :: {"id":"eef0082f-5945-4ee4-afea-d5b6f5c…
+1|Mediator | 2025-10-17T05:16:14: 5:16:14 AM [express] GET /api/calendar/connection-status 304 in 7ms :: {"connected":false}
+1|Mediator | 2025-10-17T05:16:18: 5:16:18 AM [express] GET /api/calendar/oauth/init 200 in 32ms :: {"authUrl":"https://accounts.google…
+1|Mediator | 2025-10-17T05:18:35: 5:18:35 AM [express] GET /api/calendar/oauth/init 200 in 66ms :: {"authUrl":"https://accounts.google…
+1|Mediator | 2025-10-17T05:27:15: Running in self-hosted mode - using local authentication
+1|Mediator | 2025-10-17T05:27:15: 5:27:15 AM [express] serving on port 5000
+1|Mediator | 2025-10-17T05:35:30: 5:35:30 AM [express] GET /api/calendar/oauth/init 401 in 13ms :: {"message":"Unauthorized"}
+1|Mediator | 2025-10-17T05:36:39: 5:36:39 AM [express] GET /api/auth/user 304 in 58ms :: {"id":"danny","email":"danny@localhost","firs…
+1|Mediator | 2025-10-17T05:36:47: 5:36:47 AM [express] GET /api/calendar/oauth/init 200 in 36ms :: {"authUrl":"https://accounts.google…
+1|Mediator | 2025-10-17T05:37:26: 5:37:26 AM [express] POST /api/calendar-settings 200 in 58ms :: {"id":"eef0082f-5945-4ee4-afea-d5b6f…
+1|Mediator | 2025-10-17T05:37:26: 5:37:26 AM [express] GET /api/calendar-settings 200 in 8ms :: {"id":"eef0082f-5945-4ee4-afea-d5b6f5c…
+1|Mediator | 2025-10-17T05:37:27: 5:37:27 AM [express] GET /api/calendar/connection-status 304 in 8ms :: {"connected":false}
+1|Mediator | 2025-10-17T05:38:41: 5:38:41 AM [express] GET /api/calendar-settings 401 in 2ms :: {"message":"Unauthorized"}
+1|Mediator | 2025-10-17T05:38:42: 5:38:42 AM [express] GET /api/calendar-settings 401 in 2ms :: {"message":"Unauthorized"}
