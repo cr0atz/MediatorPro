@@ -1,0 +1,102 @@
+
+/home/mediator/MediatorPro/logs/error-0.log last 100 lines:
+0|Mediator |     at async DatabaseStorage.createDocument (file:///home/mediator/MediatorPro/dist/index.js:892:24)
+0|Mediator |     at async file:///home/mediator/MediatorPro/dist/index.js:2206:7 {
+0|Mediator |   length: 146,
+0|Mediator |   severity: 'ERROR',
+0|Mediator |   code: '22021',
+0|Mediator |   detail: undefined,
+0|Mediator |   hint: undefined,
+0|Mediator |   position: undefined,
+0|Mediator |   internalPosition: undefined,
+0|Mediator |   internalQuery: undefined,
+0|Mediator |   where: 'unnamed portal parameter $8',
+0|Mediator |   schema: undefined,
+0|Mediator |   table: undefined,
+0|Mediator |   column: undefined,
+0|Mediator |   dataType: undefined,
+0|Mediator |   constraint: undefined,
+0|Mediator |   file: 'mbutils.c',
+0|Mediator |   line: '1723',
+0|Mediator |   routine: 'report_invalid_encoding'
+0|Mediator | }
+0|Mediator | 2025-10-17T07:50:51: Error extracting case data: AuthenticationError: 401 You didn't provide an API key. You need to provide your API key in an Authorization header using Bearer auth (i.e. Authorization: Bearer YOUR_KEY), or as the password field (with blank username) if you're accessing the API from your browser and are prompted for a username and password. You can obtain an API key from https://platform.openai.com/account/api-keys.
+0|Mediator |     at APIError.generate (file:///home/mediator/MediatorPro/node_modules/openai/core/error.mjs:44:20)
+0|Mediator |     at OpenAI.makeStatusError (file:///home/mediator/MediatorPro/node_modules/openai/client.mjs:162:32)
+0|Mediator |     at OpenAI.makeRequest (file:///home/mediator/MediatorPro/node_modules/openai/client.mjs:330:30)
+0|Mediator |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|Mediator |     at async AIService.extractCaseDataFromDocument (file:///home/mediator/MediatorPro/dist/index.js:1506:20)
+0|Mediator |     at async file:///home/mediator/MediatorPro/dist/index.js:2149:25 {
+0|Mediator |   status: 401,
+0|Mediator |   headers: Headers {
+0|Mediator |     date: 'Fri, 17 Oct 2025 07:50:51 GMT',
+0|Mediator |     'content-type': 'application/json; charset=utf-8',
+0|Mediator |     'content-length': '496',
+0|Mediator |     connection: 'keep-alive',
+0|Mediator |     vary: 'Origin',
+0|Mediator |     'x-request-id': 'req_38a05643672e4538b7129c04c53bd0ff',
+0|Mediator |     'x-envoy-upstream-service-time': '0',
+0|Mediator |     'x-openai-proxy-wasm': 'v0.1',
+0|Mediator |     'cf-cache-status': 'DYNAMIC',
+0|Mediator |     'set-cookie': '__cf_bm=FMVlRNGtvyHktM84u0b9Ja4B8UTJOVyvlCj0UdWGFRU-1760687451-1.0.1.1-5wB79UilzbajN6HErKvAiiA_0E_MFVWGrhN9OcUeD3TEfLX6KTN5ikx9lP3xVrg.BV5uttHu99DrgTS2cvAbt9e_jtlq88u5L3Z.72gyPQI; path=/; expires=Fri, 17-Oct-25 08:20:51 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=Uv2OP1CaMLy20KxPhdhCy3mtEphyvO2NF0u6xAtKz3w-1760687451944-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None',
+0|Mediator |     'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+0|Mediator |     'x-content-type-options': 'nosniff',
+0|Mediator |     server: 'cloudflare',
+0|Mediator |     'cf-ray': '98fe351e3fefd317-MCI',
+0|Mediator |     'alt-svc': 'h3=":443"; ma=86400'
+0|Mediator |   },
+0|Mediator |   requestID: 'req_38a05643672e4538b7129c04c53bd0ff',
+0|Mediator |   error: {
+0|Mediator |     message: "You didn't provide an API key. You need to provide your API key in an Authorization header using Bearer auth (i.e. Authorization: Bearer YOUR_KEY), or as the password field (with blank username) if you're accessing the API from your browser and are prompted for a username and password. You can obtain an API key from https://platform.openai.com/account/api-keys.",
+0|Mediator |     type: 'invalid_request_error',
+0|Mediator |     param: null,
+0|Mediator |     code: null
+0|Mediator |   },
+0|Mediator |   code: null,
+0|Mediator |   param: null,
+0|Mediator |   type: 'invalid_request_error'
+0|Mediator | }
+0|Mediator | 2025-10-17T07:50:51: AI extraction failed, using defaults: Error: Failed to extract case data from document
+0|Mediator |     at AIService.extractCaseDataFromDocument (file:///home/mediator/MediatorPro/dist/index.js:1600:13)
+0|Mediator |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|Mediator |     at async file:///home/mediator/MediatorPro/dist/index.js:2149:25
+0|Mediator | 2025-10-18T20:38:34: Error answering case question: AuthenticationError: 401 You didn't provide an API key. You need to provide your API key in an Authorization header using Bearer auth (i.e. Authorization: Bearer YOUR_KEY), or as the password field (with blank username) if you're accessing the API from your browser and are prompted for a username and password. You can obtain an API key from https://platform.openai.com/account/api-keys.
+0|Mediator |     at APIError.generate (file:///home/mediator/MediatorPro/node_modules/openai/core/error.mjs:44:20)
+0|Mediator |     at OpenAI.makeStatusError (file:///home/mediator/MediatorPro/node_modules/openai/client.mjs:162:32)
+0|Mediator |     at OpenAI.makeRequest (file:///home/mediator/MediatorPro/node_modules/openai/client.mjs:330:30)
+0|Mediator |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|Mediator |     at async AIService.answerCaseQuestion (file:///home/mediator/MediatorPro/dist/index.js:1690:24)
+0|Mediator |     at async file:///home/mediator/MediatorPro/dist/index.js:2415:22 {
+0|Mediator |   status: 401,
+0|Mediator |   headers: Headers {
+0|Mediator |     date: 'Sat, 18 Oct 2025 20:38:34 GMT',
+0|Mediator |     'content-type': 'application/json; charset=utf-8',
+0|Mediator |     'content-length': '496',
+0|Mediator |     connection: 'keep-alive',
+0|Mediator |     vary: 'Origin',
+0|Mediator |     'x-request-id': 'req_388dab67f6dc4b2b9083f29ae19bc2ff',
+0|Mediator |     'x-envoy-upstream-service-time': '0',
+0|Mediator |     'x-openai-proxy-wasm': 'v0.1',
+0|Mediator |     'cf-cache-status': 'DYNAMIC',
+0|Mediator |     'set-cookie': '__cf_bm=C418tiTeKT5zt7II7NS__F2rMeB6n8w9S_FYPr0CvNM-1760819914-1.0.1.1-3_sJ0uZ1VY2F1Y4BE06TEbL4g0NltTmB0tDK6r.J9dKMTSBlRnPBrlDZiDeMUMUL0H85HgXckT0Xr79BC2napaiHeKyS7e9448JMD5gJGzo; path=/; expires=Sat, 18-Oct-25 21:08:34 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=EtC6CAzUvyS_C4huPJpBg4dI7bqw8x9JB2zlEauJJVw-1760819914642-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None',
+0|Mediator |     'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+0|Mediator |     'x-content-type-options': 'nosniff',
+0|Mediator |     server: 'cloudflare',
+0|Mediator |     'cf-ray': '990ad711f861d19f-MCI',
+0|Mediator |     'alt-svc': 'h3=":443"; ma=86400'
+0|Mediator |   },
+0|Mediator |   requestID: 'req_388dab67f6dc4b2b9083f29ae19bc2ff',
+0|Mediator |   error: {
+0|Mediator |     message: "You didn't provide an API key. You need to provide your API key in an Authorization header using Bearer auth (i.e. Authorization: Bearer YOUR_KEY), or as the password field (with blank username) if you're accessing the API from your browser and are prompted for a username and password. You can obtain an API key from https://platform.openai.com/account/api-keys.",
+0|Mediator |     type: 'invalid_request_error',
+0|Mediator |     param: null,
+0|Mediator |     code: null
+0|Mediator |   },
+0|Mediator |   code: null,
+0|Mediator |   param: null,
+0|Mediator |   type: 'invalid_request_error'
+0|Mediator | }
+0|Mediator | 2025-10-18T20:38:34: Error answering case question: Error: Failed to answer case question
+0|Mediator |     at AIService.answerCaseQuestion (file:///home/mediator/MediatorPro/dist/index.js:1710:13)
+0|Mediator |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|Mediator |     at async file:///home/mediator/MediatorPro/dist/index.js:2415:22

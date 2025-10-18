@@ -1,0 +1,113 @@
+───┴────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+root@pro:/home/mediator/MediatorPro# sudo -u mediator pm2 show MediatorPro
+ Describing process with id 0 - name MediatorPro
+┌───────────────────┬────────────────────────────────────────────────┐
+│ status            │ online                                         │
+│ name              │ MediatorPro                                    │
+│ namespace         │ default                                        │
+│ version           │ 1.0.0                                          │
+│ restarts          │ 6                                              │
+│ uptime            │ 2m                                             │
+│ entire log path   │ /home/mediator/MediatorPro/logs/combined-0.log │
+│ script path       │ /home/mediator/MediatorPro/dist/index.js       │
+│ script args       │ N/A                                            │
+│ error log path    │ /home/mediator/MediatorPro/logs/error-0.log    │
+│ out log path      │ /home/mediator/MediatorPro/logs/out-0.log      │
+│ pid path          │ /home/mediator/.pm2/pids/MediatorPro-0.pid     │
+│ interpreter       │ node                                           │
+│ interpreter args  │ N/A                                            │
+│ script id         │ 0                                              │
+│ exec cwd          │ /home/mediator/MediatorPro                     │
+│ exec mode         │ cluster_mode                                   │
+│ node.js version   │ 20.19.5                                        │
+│ node env          │ production                                     │
+│ watch & reload    │ ✘                                              │
+│ unstable restarts │ 0                                              │
+│ created at        │ 2025-10-18T20:38:19.403Z                       │
+└───────────────────┴────────────────────────────────────────────────┘
+ Actions available
+┌────────────────────────┐
+│ km:heapdump            │
+│ km:cpu:profiling:start │
+│ km:cpu:profiling:stop  │
+│ km:heap:sampling:start │
+│ km:heap:sampling:stop  │
+└────────────────────────┘
+ Trigger via: pm2 trigger MediatorPro <action_name>
+
+ Code metrics value
+┌────────────────────────┬───────────┐
+│ Used Heap Size         │ 73.32 MiB │
+│ Heap Usage             │ 95.92 %   │
+│ Heap Size              │ 76.43 MiB │
+│ Event Loop Latency p95 │ 1.31 ms   │
+│ Event Loop Latency     │ 0.21 ms   │
+│ Active handles         │ 1         │
+│ Active requests        │ 0         │
+│ HTTP                   │ 0 req/min │
+│ HTTP P95 Latency       │ 320 ms    │
+│ HTTP Mean Latency      │ 320 ms    │
+└────────────────────────┴───────────┘
+ Divergent env variables from local env
+┌──────────────┬─────────────────────────────────────────┐
+│ SUDO_COMMAND │ /usr/bin/pm2 start ecosystem.config.cjs │
+└──────────────┴─────────────────────────────────────────┘
+
+ Add your own code metrics: http://bit.ly/code-metrics
+ Use `pm2 logs MediatorPro [--lines 1000]` to display logs
+ Use `pm2 env 0` to display environment variables
+ Use `pm2 monit` to monitor CPU and Memory usage MediatorPro
+ Describing process with id 1 - name MediatorPro
+┌───────────────────┬────────────────────────────────────────────────┐
+│ status            │ online                                         │
+│ name              │ MediatorPro                                    │
+│ namespace         │ default                                        │
+│ version           │ 1.0.0                                          │
+│ restarts          │ 6                                              │
+│ uptime            │ 2m                                             │
+│ entire log path   │ /home/mediator/MediatorPro/logs/combined-1.log │
+│ script path       │ /home/mediator/MediatorPro/dist/index.js       │
+│ script args       │ N/A                                            │
+│ error log path    │ /home/mediator/MediatorPro/logs/error-1.log    │
+│ out log path      │ /home/mediator/MediatorPro/logs/out-1.log      │
+│ pid path          │ /home/mediator/.pm2/pids/MediatorPro-1.pid     │
+│ interpreter       │ node                                           │
+│ interpreter args  │ N/A                                            │
+│ script id         │ 1                                              │
+│ exec cwd          │ /home/mediator/MediatorPro                     │
+│ exec mode         │ cluster_mode                                   │
+│ node.js version   │ 20.19.5                                        │
+│ node env          │ production                                     │
+│ watch & reload    │ ✘                                              │
+│ unstable restarts │ 0                                              │
+│ created at        │ 2025-10-18T20:38:19.566Z                       │
+└───────────────────┴────────────────────────────────────────────────┘
+ Actions available
+┌────────────────────────┐
+│ km:heapdump            │
+│ km:cpu:profiling:start │
+│ km:cpu:profiling:stop  │
+│ km:heap:sampling:start │
+│ km:heap:sampling:stop  │
+└────────────────────────┘
+ Trigger via: pm2 trigger MediatorPro <action_name>
+
+ Code metrics value
+┌────────────────────────┬───────────┐
+│ Used Heap Size         │ 72.22 MiB │
+│ Heap Usage             │ 94.79 %   │
+│ Heap Size              │ 76.18 MiB │
+│ Event Loop Latency p95 │ 1.39 ms   │
+│ Event Loop Latency     │ 0.58 ms   │
+│ Active handles         │ 1         │
+│ Active requests        │ 0         │
+└────────────────────────┴───────────┘
+ Divergent env variables from local env
+┌──────────────┬─────────────────────────────────────────┐
+│ SUDO_COMMAND │ /usr/bin/pm2 start ecosystem.config.cjs │
+└──────────────┴─────────────────────────────────────────┘
+
+ Add your own code metrics: http://bit.ly/code-metrics
+ Use `pm2 logs MediatorPro [--lines 1000]` to display logs
+ Use `pm2 env 1` to display environment variables
+ Use `pm2 monit` to monitor CPU and Memory usage MediatorPro
