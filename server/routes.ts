@@ -1188,17 +1188,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Zoom meeting already exists for this case" });
       }
 
+      // Get Zoom credentials from database
+      const zoomSettings = await storage.getZoomSettings(userId);
+      if (!zoomSettings) {
+        return res.status(400).json({ message: "Zoom credentials not configured. Please configure your Zoom settings first." });
+      }
+
       // Import Zoom service
       const { zoomService } = await import('./zoomService.js');
 
-      // Create Zoom meeting
+      // Create Zoom meeting with credentials from database
       const startTime = caseData.mediationDate || new Date(Date.now() + 24 * 60 * 60 * 1000); // Default to tomorrow if no date set
-      const meeting = await zoomService.createMeeting({
-        topic: `Mediation Session - ${caseData.caseNumber}`,
-        startTime: new Date(startTime),
-        duration: 120, // 2 hours default
-        timezone: 'Australia/Sydney',
-      });
+      const meeting = await zoomService.createMeeting(
+        {
+          accountId: zoomSettings.accountId,
+          clientId: zoomSettings.clientId,
+          clientSecret: zoomSettings.clientSecret,
+        },
+        {
+          topic: `Mediation Session - ${caseData.caseNumber}`,
+          startTime: new Date(startTime),
+          duration: 120, // 2 hours default
+          timezone: 'Australia/Sydney',
+        }
+      );
 
       // Update case with Zoom meeting details
       const updatedCase = await storage.updateCase(caseId, {
@@ -1233,11 +1246,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No Zoom meeting exists for this case" });
       }
 
+      // Get Zoom credentials from database
+      const zoomSettings = await storage.getZoomSettings(userId);
+      if (!zoomSettings) {
+        return res.status(400).json({ message: "Zoom credentials not configured. Please configure your Zoom settings first." });
+      }
+
       // Import Zoom service
       const { zoomService } = await import('./zoomService.js');
 
-      // Delete Zoom meeting
-      await zoomService.deleteMeeting(caseData.zoomMeetingId);
+      // Delete Zoom meeting with credentials from database
+      await zoomService.deleteMeeting(
+        {
+          accountId: zoomSettings.accountId,
+          clientId: zoomSettings.clientId,
+          clientSecret: zoomSettings.clientSecret,
+        },
+        caseData.zoomMeetingId
+      );
 
       // Update case to remove Zoom meeting details
       const updatedCase = await storage.updateCase(caseId, {
