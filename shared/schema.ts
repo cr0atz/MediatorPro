@@ -33,6 +33,7 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   passwordHash: varchar("password_hash"), // For local authentication
   isLocal: boolean("is_local").default(false), // true for local users, false for Replit auth
+  mediatorEmail: varchar("mediator_email"), // Email to CC on all outgoing communications
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
