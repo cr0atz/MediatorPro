@@ -57,16 +57,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Update user with new data (only allow updating mediatorEmail for now)
+      // Validate the profile update data
+      const { updateUserProfileSchema } = await import('@shared/schema');
+      const validatedData = updateUserProfileSchema.parse(req.body);
+
+      // Update user with validated data
       const updatedUser = await storage.upsertUser({
         ...currentUser,
-        mediatorEmail: req.body.mediatorEmail,
+        mediatorEmail: validatedData.mediatorEmail,
         updatedAt: new Date(),
       });
 
       res.json(updatedUser);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating user profile:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid profile data", error: error.errors });
+      }
       res.status(500).json({ message: "Failed to update user profile" });
     }
   });
@@ -1059,7 +1066,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get user's mediator email for CC
       const user = await storage.getUser(userId);
-      const mediatorEmail = user?.mediatorEmail;
+      const mediatorEmail = user?.mediatorEmail || undefined;
 
       const { GmailService } = await import('./gmailService.js');
       const gmailService = new GmailService(settings);
@@ -1123,7 +1130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get user's mediator email for CC
       const user = await storage.getUser(userId);
-      const mediatorEmail = user?.mediatorEmail;
+      const mediatorEmail = user?.mediatorEmail || undefined;
 
       const { GmailService } = await import('./gmailService.js');
       const gmailService = new GmailService(settings);

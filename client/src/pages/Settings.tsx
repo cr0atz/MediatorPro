@@ -346,7 +346,7 @@ export default function Settings() {
 
   // Update user profile mutation
   const profileMutation = useMutation({
-    mutationFn: async (data: { mediatorEmail: string }) => {
+    mutationFn: async (data: { mediatorEmail: string | null }) => {
       return apiRequest('PATCH', '/api/auth/user', data);
     },
     onSuccess: () => {
@@ -370,7 +370,11 @@ export default function Settings() {
   };
 
   const onProfileSubmit = (data: { mediatorEmail: string }) => {
-    profileMutation.mutate(data);
+    // Convert empty string to null so Zod validation accepts it
+    const submitData = {
+      mediatorEmail: data.mediatorEmail.trim() === '' ? null : data.mediatorEmail,
+    };
+    profileMutation.mutate(submitData);
   };
 
   const onTemplateSubmit = (data: InsertEmailTemplate) => {

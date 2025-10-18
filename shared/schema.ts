@@ -268,6 +268,12 @@ export const insertCalendarSettingsSchema = createInsertSchema(calendarSettings)
   updatedAt: true,
 });
 
+// User profile update schema (for updating mediator email)
+export const updateUserProfileSchema = z.object({
+  mediatorEmail: z.string().email().nullable().optional()
+    .or(z.literal('').transform(() => null)),
+});
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type Case = typeof cases.$inferSelect;
@@ -288,3 +294,4 @@ export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
 export type InsertSmtpSettings = z.infer<typeof insertSmtpSettingsSchema>;
 export type InsertZoomSettings = z.infer<typeof insertZoomSettingsSchema>;
 export type InsertCalendarSettings = z.infer<typeof insertCalendarSettingsSchema>;
+export type UpdateUserProfile = z.infer<typeof updateUserProfileSchema>;
