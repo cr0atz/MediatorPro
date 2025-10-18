@@ -371,7 +371,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
               <Mail className="w-4 h-4 mr-2" />
               Send Email
             </Button>
-            {case_.zoomMeetingLink && (
+            {case_.zoomMeetingLink ? (
               <Button
                 variant="default"
                 onClick={handleJoinZoomMeeting}
@@ -380,6 +380,17 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
               >
                 <Video className="w-4 h-4 mr-2" />
                 Join Session
+              </Button>
+            ) : (
+              <Button
+                variant="default"
+                onClick={handleCreateZoomMeeting}
+                disabled={createZoomMeetingMutation.isPending}
+                className="bg-white text-primary hover:bg-white/90"
+                data-testid="button-set-zoom"
+              >
+                <Video className="w-4 h-4 mr-2" />
+                {createZoomMeetingMutation.isPending ? 'Creating...' : 'Set Zoom'}
               </Button>
             )}
             <Button
