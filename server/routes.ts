@@ -1208,7 +1208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           topic: `Mediation Session - ${caseData.caseNumber}`,
           startTime: new Date(startTime),
-          duration: 120, // 2 hours default
+          duration: 210, // 3.5 hours default (210 minutes)
           timezone: 'Australia/Sydney',
         }
       );

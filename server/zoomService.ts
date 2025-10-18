@@ -1,4 +1,3 @@
-import { randomBytes } from 'crypto';
 
 interface ZoomTokenResponse {
   access_token: string;
@@ -31,6 +30,7 @@ interface ZoomMeetingSettings {
     approval_type?: number;
     audio?: string;
     auto_recording?: string;
+    waiting_room?: boolean;
   };
 }
 
@@ -93,16 +93,12 @@ export class ZoomService {
   ): Promise<{ meetingId: string; joinUrl: string; password: string }> {
     const token = await this.getAccessToken(credentials);
 
-    // Generate a secure password
-    const password = randomBytes(4).toString('hex');
-
     const meetingData: ZoomMeetingSettings = {
       topic: settings.topic,
       type: 2, // Scheduled meeting
       start_time: settings.startTime.toISOString(),
       duration: settings.duration,
       timezone: settings.timezone || 'Australia/Sydney',
-      password: password,
       settings: {
         host_video: true,
         participant_video: true,
@@ -113,6 +109,7 @@ export class ZoomService {
         approval_type: 0, // Automatically approve
         audio: 'both',
         auto_recording: 'none',
+        waiting_room: true, // Enable waiting room by default
       },
     };
 
@@ -135,7 +132,7 @@ export class ZoomService {
     return {
       meetingId: meeting.id.toString(),
       joinUrl: meeting.join_url,
-      password: meeting.password || password,
+      password: meeting.password || '',
     };
   }
 
