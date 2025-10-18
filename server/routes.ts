@@ -1057,6 +1057,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Google account not connected. Please connect to Google Calendar first." });
       }
 
+      // Get user's mediator email for CC
+      const user = await storage.getUser(userId);
+      const mediatorEmail = user?.mediatorEmail;
+
       const { GmailService } = await import('./gmailService.js');
       const gmailService = new GmailService(settings);
 
@@ -1064,6 +1068,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const messageId = await gmailService.sendEmail({
         to: 'danny@mediator.life',
         subject: 'Gmail API Test Email - Mediator Pro',
+        cc: mediatorEmail,
+        requestReadReceipt: true,
+        requestDeliveryReceipt: true,
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
             <h2 style="color: #2563eb;">Gmail API Test Successful!</h2>
@@ -1075,7 +1082,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ✓ No DKIM/SPF configuration needed<br>
               ✓ No authentication warnings<br>
               ✓ Sent from your real Gmail account<br>
-              ✓ Automatically authenticated
+              ✓ Automatically authenticated<br>
+              ${mediatorEmail ? `✓ Mediator CC'd: ${mediatorEmail}` : ''}
             </p>
           </div>
         `,
@@ -1083,7 +1091,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         message: "Test email sent successfully via Gmail API! Check your inbox.",
-        messageId 
+        messageId,
+        mediatorCc: mediatorEmail || 'Not configured'
       });
     } catch (error: any) {
       console.error("Error sending test email via Gmail:", error);
@@ -1112,6 +1121,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Google account not connected. Please connect to Google Calendar first." });
       }
 
+      // Get user's mediator email for CC
+      const user = await storage.getUser(userId);
+      const mediatorEmail = user?.mediatorEmail;
+
       const { GmailService } = await import('./gmailService.js');
       const gmailService = new GmailService(settings);
 
@@ -1128,11 +1141,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subject,
         html,
         text,
+        cc: mediatorEmail,
+        requestReadReceipt: true,
+        requestDeliveryReceipt: true,
       });
 
       res.json({ 
         message: "Email(s) sent successfully via Gmail API",
-        messageIds 
+        messageIds,
+        mediatorCc: mediatorEmail || 'Not configured'
       });
     } catch (error: any) {
       console.error("Error sending email via Gmail:", error);
