@@ -10,8 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { SmtpSettings, EmailTemplate, InsertSmtpSettings, InsertEmailTemplate, ZoomSettings, CalendarSettings, InsertZoomSettings, InsertCalendarSettings } from "@shared/schema";
-import { Server, Mail, Plus, Trash2, Save, TestTube, Video, Calendar, Link2, CheckCircle, XCircle } from "lucide-react";
+import { SmtpSettings, EmailTemplate, InsertSmtpSettings, InsertEmailTemplate, ZoomSettings, CalendarSettings, InsertZoomSettings, InsertCalendarSettings, User } from "@shared/schema";
+import { Server, Mail, Plus, Trash2, Save, TestTube, Video, Calendar, Link2, CheckCircle, XCircle, UserCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertSmtpSettingsSchema, insertEmailTemplateSchema, insertZoomSettingsSchema, insertCalendarSettingsSchema } from "@shared/schema";
@@ -113,6 +113,13 @@ export default function Settings() {
       userId: (user as any)?.id || '',
       clientId: '',
       clientSecret: '',
+    },
+  });
+
+  // Profile form for mediator email
+  const profileForm = useForm<{ mediatorEmail: string }>({
+    defaultValues: {
+      mediatorEmail: (user as User)?.mediatorEmail || '',
     },
   });
 
@@ -337,8 +344,33 @@ export default function Settings() {
     calendarDisconnectMutation.mutate();
   };
 
+  // Update user profile mutation
+  const profileMutation = useMutation({
+    mutationFn: async (data: { mediatorEmail: string }) => {
+      return apiRequest('PATCH', '/api/auth/user', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      toast({
+        title: "Profile Updated",
+        description: "Your mediator email has been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSmtpSubmit = (data: InsertSmtpSettings) => {
     smtpMutation.mutate(data);
+  };
+
+  const onProfileSubmit = (data: { mediatorEmail: string }) => {
+    profileMutation.mutate(data);
   };
 
   const onTemplateSubmit = (data: InsertEmailTemplate) => {
@@ -372,6 +404,14 @@ export default function Settings() {
     }
   }, [calendarSettings, calendarForm]);
 
+  useEffect(() => {
+    if (user && !profileForm.formState.isDirty) {
+      profileForm.reset({
+        mediatorEmail: (user as User)?.mediatorEmail || '',
+      });
+    }
+  }, [user, profileForm]);
+
   const handleEditTemplate = (template: EmailTemplate) => {
     setSelectedTemplate(template);
     templateForm.reset({
@@ -402,8 +442,12 @@ export default function Settings() {
           <p className="text-sm text-muted-foreground mt-2">Manage your application settings and preferences</p>
         </div>
 
-        <Tabs defaultValue="smtp" className="space-y-8">
+        <Tabs defaultValue="profile" className="space-y-8">
           <TabsList className="bg-surface rounded-lg p-1 inline-flex gap-1" data-testid="tabs-settings">
+            <TabsTrigger value="profile" className="data-[state=active]:bg-background" data-testid="tab-profile">
+              <UserCircle className="w-4 h-4 mr-2" />
+              Profile
+            </TabsTrigger>
             <TabsTrigger value="smtp" className="data-[state=active]:bg-background" data-testid="tab-smtp">
               <Server className="w-4 h-4 mr-2" />
               SMTP Configuration
@@ -421,6 +465,57 @@ export default function Settings() {
               Email Templates
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="profile" className="pt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <UserCircle className="w-5 h-5 mr-2" />
+                  Profile Settings
+                </CardTitle>
+                <CardDescription>
+                  Manage your personal settings and email preferences
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...profileForm}>
+                  <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
+                    <FormField
+                      control={profileForm.control}
+                      name="mediatorEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mediator Email</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="email" 
+                              placeholder="mediator@example.com" 
+                              {...field} 
+                              data-testid="input-mediator-email" 
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            This email will be CC'd on all outgoing emails to case parties. Leave blank to disable auto-CC.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="pt-4 border-t">
+                      <Button 
+                        type="submit" 
+                        disabled={profileMutation.isPending}
+                        data-testid="button-save-profile"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        {profileMutation.isPending ? 'Saving...' : 'Save Profile'}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="smtp" className="pt-8">
             <Card>
