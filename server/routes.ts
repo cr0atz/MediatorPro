@@ -47,6 +47,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user profile
+  app.patch('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Validate the profile update data
+      const { updateUserProfileSchema } = await import('@shared/schema');
+      const validatedData = updateUserProfileSchema.parse(req.body);
+
+      // Update user with validated data
+      const updatedUser = await storage.upsertUser({
+        ...currentUser,
+        mediatorEmail: validatedData.mediatorEmail,
+        updatedAt: new Date(),
+      });
+
+      res.json(updatedUser);
+    } catch (error: any) {
+      console.error("Error updating user profile:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid profile data", error: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update user profile" });
+    }
+  });
+
   // Local file storage routes for documents
   app.get("/objects/:objectPath(*)", isAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
@@ -1033,6 +1064,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Google account not connected. Please connect to Google Calendar first." });
       }
 
+      // Get user's mediator email for CC
+      const user = await storage.getUser(userId);
+      const mediatorEmail = user?.mediatorEmail || undefined;
+
       const { GmailService } = await import('./gmailService.js');
       const gmailService = new GmailService(settings);
 
@@ -1040,6 +1075,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const messageId = await gmailService.sendEmail({
         to: 'danny@mediator.life',
         subject: 'Gmail API Test Email - Mediator Pro',
+        cc: mediatorEmail,
+        requestReadReceipt: true,
+        requestDeliveryReceipt: true,
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
             <h2 style="color: #2563eb;">Gmail API Test Successful!</h2>
@@ -1051,7 +1089,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ✓ No DKIM/SPF configuration needed<br>
               ✓ No authentication warnings<br>
               ✓ Sent from your real Gmail account<br>
-              ✓ Automatically authenticated
+              ✓ Automatically authenticated<br>
+              ${mediatorEmail ? `✓ Mediator CC'd: ${mediatorEmail}` : ''}
             </p>
           </div>
         `,
@@ -1059,7 +1098,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         message: "Test email sent successfully via Gmail API! Check your inbox.",
-        messageId 
+        messageId,
+        mediatorCc: mediatorEmail || 'Not configured'
       });
     } catch (error: any) {
       console.error("Error sending test email via Gmail:", error);
@@ -1088,6 +1128,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Google account not connected. Please connect to Google Calendar first." });
       }
 
+      // Get user's mediator email for CC
+      const user = await storage.getUser(userId);
+      const mediatorEmail = user?.mediatorEmail || undefined;
+
       const { GmailService } = await import('./gmailService.js');
       const gmailService = new GmailService(settings);
 
@@ -1104,11 +1148,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subject,
         html,
         text,
+        cc: mediatorEmail,
+        requestReadReceipt: true,
+        requestDeliveryReceipt: true,
       });
 
       res.json({ 
         message: "Email(s) sent successfully via Gmail API",
-        messageIds 
+        messageIds,
+        mediatorCc: mediatorEmail || 'Not configured'
       });
     } catch (error: any) {
       console.error("Error sending email via Gmail:", error);
@@ -1140,17 +1188,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Zoom meeting already exists for this case" });
       }
 
+      // Get Zoom credentials from database
+      const zoomSettings = await storage.getZoomSettings(userId);
+      if (!zoomSettings) {
+        return res.status(400).json({ message: "Zoom credentials not configured. Please configure your Zoom settings first." });
+      }
+
       // Import Zoom service
       const { zoomService } = await import('./zoomService.js');
 
-      // Create Zoom meeting
+      // Create Zoom meeting with credentials from database
       const startTime = caseData.mediationDate || new Date(Date.now() + 24 * 60 * 60 * 1000); // Default to tomorrow if no date set
-      const meeting = await zoomService.createMeeting({
-        topic: `Mediation Session - ${caseData.caseNumber}`,
-        startTime: new Date(startTime),
-        duration: 120, // 2 hours default
-        timezone: 'Australia/Sydney',
-      });
+      const meeting = await zoomService.createMeeting(
+        {
+          accountId: zoomSettings.accountId,
+          clientId: zoomSettings.clientId,
+          clientSecret: zoomSettings.clientSecret,
+        },
+        {
+          topic: `Mediation Session - ${caseData.caseNumber}`,
+          startTime: new Date(startTime),
+          duration: 120, // 2 hours default
+          timezone: 'Australia/Sydney',
+        }
+      );
 
       // Update case with Zoom meeting details
       const updatedCase = await storage.updateCase(caseId, {
@@ -1185,11 +1246,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No Zoom meeting exists for this case" });
       }
 
+      // Get Zoom credentials from database
+      const zoomSettings = await storage.getZoomSettings(userId);
+      if (!zoomSettings) {
+        return res.status(400).json({ message: "Zoom credentials not configured. Please configure your Zoom settings first." });
+      }
+
       // Import Zoom service
       const { zoomService } = await import('./zoomService.js');
 
-      // Delete Zoom meeting
-      await zoomService.deleteMeeting(caseData.zoomMeetingId);
+      // Delete Zoom meeting with credentials from database
+      await zoomService.deleteMeeting(
+        {
+          accountId: zoomSettings.accountId,
+          clientId: zoomSettings.clientId,
+          clientSecret: zoomSettings.clientSecret,
+        },
+        caseData.zoomMeetingId
+      );
 
       // Update case to remove Zoom meeting details
       const updatedCase = await storage.updateCase(caseId, {

@@ -34,36 +34,35 @@ interface ZoomMeetingSettings {
   };
 }
 
+interface ZoomCredentials {
+  accountId: string;
+  clientId: string;
+  clientSecret: string;
+}
+
 export class ZoomService {
-  private accountId: string;
-  private clientId: string;
-  private clientSecret: string;
-  private accessToken: string | null = null;
-  private tokenExpiry: number = 0;
+  private accessTokenCache: Map<string, { token: string; expiry: number }> = new Map();
 
   constructor() {
-    this.accountId = process.env.ZOOM_ACCOUNT_ID || '';
-    this.clientId = process.env.ZOOM_CLIENT_ID || '';
-    this.clientSecret = process.env.ZOOM_CLIENT_SECRET || '';
-
-    if (!this.accountId || !this.clientId || !this.clientSecret) {
-      throw new Error('Zoom credentials not configured. Please set ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, and ZOOM_CLIENT_SECRET environment variables.');
-    }
+    // No longer requires env vars in constructor
   }
 
-  private async getAccessToken(): Promise<string> {
+  private async getAccessToken(credentials: ZoomCredentials): Promise<string> {
+    const cacheKey = credentials.accountId;
+    
     // Return cached token if still valid
-    if (this.accessToken && Date.now() < this.tokenExpiry) {
-      return this.accessToken;
+    const cached = this.accessTokenCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiry) {
+      return cached.token;
     }
 
     // Get new token using Server-to-Server OAuth
-    const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+    const authString = Buffer.from(`${credentials.clientId}:${credentials.clientSecret}`).toString('base64');
     
-    const response = await fetch(`https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${this.accountId}`, {
+    const response = await fetch(`https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${credentials.accountId}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${credentials}`,
+        'Authorization': `Basic ${authString}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
     });
@@ -74,20 +73,25 @@ export class ZoomService {
     }
 
     const data: ZoomTokenResponse = await response.json();
-    this.accessToken = data.access_token;
+    const accessToken = data.access_token;
     // Set expiry to 5 minutes before actual expiry for safety
-    this.tokenExpiry = Date.now() + (data.expires_in - 300) * 1000;
+    const tokenExpiry = Date.now() + (data.expires_in - 300) * 1000;
+    
+    this.accessTokenCache.set(cacheKey, { token: accessToken, expiry: tokenExpiry });
 
-    return this.accessToken;
+    return accessToken;
   }
 
-  async createMeeting(settings: {
-    topic: string;
-    startTime: Date;
-    duration: number;
-    timezone?: string;
-  }): Promise<{ meetingId: string; joinUrl: string; password: string }> {
-    const token = await this.getAccessToken();
+  async createMeeting(
+    credentials: ZoomCredentials,
+    settings: {
+      topic: string;
+      startTime: Date;
+      duration: number;
+      timezone?: string;
+    }
+  ): Promise<{ meetingId: string; joinUrl: string; password: string }> {
+    const token = await this.getAccessToken(credentials);
 
     // Generate a secure password
     const password = randomBytes(4).toString('hex');
@@ -135,8 +139,8 @@ export class ZoomService {
     };
   }
 
-  async deleteMeeting(meetingId: string): Promise<void> {
-    const token = await this.getAccessToken();
+  async deleteMeeting(credentials: ZoomCredentials, meetingId: string): Promise<void> {
+    const token = await this.getAccessToken(credentials);
 
     const response = await fetch(`https://api.zoom.us/v2/meetings/${meetingId}`, {
       method: 'DELETE',
@@ -151,8 +155,8 @@ export class ZoomService {
     }
   }
 
-  async getMeeting(meetingId: string): Promise<ZoomMeetingResponse> {
-    const token = await this.getAccessToken();
+  async getMeeting(credentials: ZoomCredentials, meetingId: string): Promise<ZoomMeetingResponse> {
+    const token = await this.getAccessToken(credentials);
 
     const response = await fetch(`https://api.zoom.us/v2/meetings/${meetingId}`, {
       method: 'GET',
