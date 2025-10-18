@@ -3,8 +3,13 @@ import { storage } from "./storage";
 import type { Document } from "@shared/schema";
 
 // Using GPT-4 Turbo model for AI analysis
+const apiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || "";
+
+// Log API key status (not the actual key)
+console.log("OpenAI API Key configured:", apiKey ? `Yes (${apiKey.substring(0, 7)}...)` : "No - MISSING!");
+
 const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || ""
+  apiKey: apiKey
 });
 
 export interface ExtractedCaseData {
@@ -278,9 +283,10 @@ Return only valid JSON. If information is not found, omit the field or use null.
       });
 
       return response.choices[0].message.content || "";
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error answering case question:", error);
-      throw new Error("Failed to answer case question");
+      console.error("Error details:", error?.response?.data || error?.message);
+      throw new Error(`Failed to get AI response: ${error?.message || 'Unknown error'}`);
     }
   }
 

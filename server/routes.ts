@@ -557,9 +557,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const analysis = await storage.createAiAnalysis(validatedAnalysisData);
 
       res.json({ question, answer, analysis });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error answering case question:", error);
-      res.status(500).json({ message: "Failed to answer case question" });
+      res.status(500).json({ message: error?.message || "Failed to answer case question" });
     }
   });
 
