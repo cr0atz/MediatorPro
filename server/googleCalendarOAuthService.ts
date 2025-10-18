@@ -163,6 +163,47 @@ export class GoogleCalendarOAuthService {
     }
   }
 
+  // Update a calendar event
+  async updateEvent(eventId: string, params: {
+    summary: string;
+    description?: string;
+    location?: string;
+    startDateTime: string;
+    endDateTime: string;
+    attendees?: { email: string; displayName?: string }[];
+  }): Promise<void> {
+    try {
+      const event = {
+        summary: params.summary,
+        description: params.description,
+        location: params.location,
+        start: {
+          dateTime: params.startDateTime,
+        },
+        end: {
+          dateTime: params.endDateTime,
+        },
+        attendees: params.attendees?.map(a => ({
+          email: a.email,
+          displayName: a.displayName,
+        })),
+      };
+
+      await this.calendar.events.update({
+        calendarId: 'primary',
+        eventId,
+        requestBody: event,
+        sendUpdates: 'all',
+      });
+    } catch (error: any) {
+      if (error.code === 401) {
+        await this.refreshAccessToken();
+        return this.updateEvent(eventId, params);
+      }
+      throw error;
+    }
+  }
+
   // Delete a calendar event
   async deleteEvent(eventId: string): Promise<void> {
     try {

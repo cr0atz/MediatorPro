@@ -46,6 +46,7 @@
     "@types/memoizee": "^0.4.12",
     "@types/multer": "^2.0.0",
     "@types/nodemailer": "^7.0.2",
+    "@types/react-big-calendar": "^1.16.3",
     "@uppy/aws-s3": "^5.0.1",
     "@uppy/core": "^5.1.0",
     "@uppy/dashboard": "^5.0.2",

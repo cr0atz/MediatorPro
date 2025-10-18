@@ -1503,6 +1503,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update calendar event directly
+  app.patch('/api/calendar/events/:eventId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { eventId } = req.params;
+      const userId = req.user.claims.sub;
+      const { summary, description, location, startDateTime, endDateTime } = req.body;
+      
+      const { service, settings } = await getUserCalendarService(userId);
+      
+      await service.updateEvent(eventId, {
+        summary,
+        description,
+        location,
+        startDateTime,
+        endDateTime,
+        attendees: [],
+      });
+      
+      await saveRefreshedTokens(userId, settings, service);
+      res.json({ message: 'Event updated successfully' });
+    } catch (error) {
+      console.error("Error updating calendar event:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to update calendar event" 
+      });
+    }
+  });
+
+  // Delete calendar event directly
+  app.delete('/api/calendar/events/:eventId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { eventId } = req.params;
+      const userId = req.user.claims.sub;
+      
+      const { service, settings } = await getUserCalendarService(userId);
+      
+      await service.deleteEvent(eventId);
+      await saveRefreshedTokens(userId, settings, service);
+      
+      res.json({ message: 'Event deleted successfully' });
+    } catch (error) {
+      console.error("Error deleting calendar event:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to delete calendar event" 
+      });
+    }
+  });
+
   app.post('/api/calendar/create-case-from-event', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
