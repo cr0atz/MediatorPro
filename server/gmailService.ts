@@ -42,6 +42,9 @@ export class GmailService {
     text?: string;
     html?: string;
     from?: string;
+    cc?: string;
+    requestReadReceipt?: boolean;
+    requestDeliveryReceipt?: boolean;
   }): Promise<string> {
     try {
       // Create email in RFC 2822 format
@@ -49,12 +52,29 @@ export class GmailService {
       const messageParts = [
         `From: ${from}`,
         `To: ${params.to}`,
-        `Subject: ${params.subject}`,
-        'MIME-Version: 1.0',
-        'Content-Type: text/html; charset=utf-8',
-        '',
-        params.html || params.text || '',
       ];
+
+      // Add CC if provided
+      if (params.cc) {
+        messageParts.push(`Cc: ${params.cc}`);
+      }
+
+      messageParts.push(`Subject: ${params.subject}`);
+
+      // Add read receipt header if requested
+      if (params.requestReadReceipt) {
+        messageParts.push(`Disposition-Notification-To: ${from}`);
+      }
+
+      // Add delivery receipt header if requested
+      if (params.requestDeliveryReceipt) {
+        messageParts.push(`Return-Receipt-To: ${from}`);
+      }
+
+      messageParts.push('MIME-Version: 1.0');
+      messageParts.push('Content-Type: text/html; charset=utf-8');
+      messageParts.push('');
+      messageParts.push(params.html || params.text || '');
       
       const message = messageParts.join('\n');
       
@@ -90,6 +110,9 @@ export class GmailService {
     text?: string;
     html?: string;
     from?: string;
+    cc?: string;
+    requestReadReceipt?: boolean;
+    requestDeliveryReceipt?: boolean;
   }): Promise<string[]> {
     const messageIds: string[] = [];
     
@@ -100,6 +123,9 @@ export class GmailService {
         text: params.text,
         html: params.html,
         from: params.from,
+        cc: params.cc,
+        requestReadReceipt: params.requestReadReceipt,
+        requestDeliveryReceipt: params.requestDeliveryReceipt,
       });
       messageIds.push(messageId);
     }
