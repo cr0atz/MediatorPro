@@ -35,6 +35,20 @@ export interface ExtractedCaseData {
   }[];
 }
 
+export interface ExtractedMeetingData {
+  eventType?: string;
+  inviteeName?: string;
+  inviteeEmail?: string;
+  eventDateTime?: string;
+  eventDateTimeRaw?: string;
+  location?: string;
+  description?: string;
+  questions?: string;
+  additionalDetails?: string;
+  subject?: string;
+  timeZone?: string;
+}
+
 export class AIService {
   async extractCaseDataFromDocument(documentBuffer: Buffer, mimeType: string): Promise<ExtractedCaseData> {
     try {
@@ -186,6 +200,120 @@ Return only valid JSON. If information is not found, omit the field or use null.
     } catch (error) {
       console.error("Error extracting case data:", error);
       throw new Error("Failed to extract case data from document");
+    }
+  }
+
+  async extractMeetingDataFromDocument(documentBuffer: Buffer, mimeType: string): Promise<ExtractedMeetingData> {
+    try {
+      const prompt = `You are an expert at extracting calendar event information from documents. 
+Extract meeting/event details from this document by looking for field:value patterns.
+
+Common patterns to look for:
+- "Event Type:" followed by the type of consultation/meeting
+- "Invitee:" or "Invitee Name:" followed by the person's name
+- "Invitee Email:" followed by email address
+- "Event Date/Time:" or "Date/Time:" followed by the date and time
+- "Location:" followed by location (address, phone number, or virtual link)
+- "Description:" followed by event description
+- "Questions:" or "Additional Details:" followed by any questions or notes
+- "Subject:" from email headers
+- "Time Zone:" timezone information
+
+IMPORTANT: Read the ACTUAL text content carefully. Extract the real values that appear in the document.
+Do NOT make up fake data - only return what you actually find in the document.
+
+Return JSON with these fields (omit if not found):
+- eventType: Type of event/consultation
+- inviteeName: Name of the invitee/attendee
+- inviteeEmail: Email address of invitee
+- eventDateTime: Date and time of event in ISO 8601 format (YYYY-MM-DDTHH:MM:SS) if possible, otherwise the raw text
+- eventDateTimeRaw: Original date/time text as it appears in the document
+- location: Location, phone number, or meeting link
+- description: Event description
+- questions: Questions or notes section
+- additionalDetails: Any other relevant details
+- subject: Email subject if present
+- timeZone: Time zone information
+
+IMPORTANT for eventDateTime: Try to convert dates to ISO format (YYYY-MM-DDTHH:MM:SS).
+For example: "12:30pm - Monday, 20 October 2025" becomes "2025-10-20T12:30:00"
+If you cannot confidently parse the date, still return the raw text in eventDateTimeRaw.
+
+Return only valid JSON with actual extracted values.`;
+
+      const isPDF = mimeType === 'application/pdf';
+      const isWord = mimeType === 'application/msword' || mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      
+      let response;
+      let extractedText = '';
+      
+      if (isPDF) {
+        const { PDFParse } = await import('pdf-parse');
+        const uint8Array = new Uint8Array(documentBuffer);
+        const parser = new PDFParse(uint8Array);
+        const textResult = await parser.getText();
+        extractedText = textResult.text;
+        
+        response = await openai.chat.completions.create({
+          model: "gpt-4-turbo",
+          messages: [
+            {
+              role: "system",
+              content: "You are a calendar event extraction expert. Extract ONLY the actual information present in the document. Do NOT fabricate or make up any data."
+            },
+            {
+              role: "user",
+              content: `${prompt}\n\nDocument text:\n${extractedText.substring(0, 100000)}`
+            }
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 4096,
+        });
+      } else if (isWord) {
+        const mammoth = await import('mammoth');
+        const result = await mammoth.extractRawText({ buffer: documentBuffer });
+        extractedText = result.value;
+        
+        response = await openai.chat.completions.create({
+          model: "gpt-4-turbo",
+          messages: [
+            {
+              role: "system",
+              content: "You are a calendar event extraction expert. Extract ONLY the actual information present in the document. Do NOT fabricate or make up any data."
+            },
+            {
+              role: "user",
+              content: `${prompt}\n\nDocument text:\n${extractedText.substring(0, 100000)}`
+            }
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 4096,
+        });
+      } else {
+        extractedText = documentBuffer.toString('utf-8');
+        response = await openai.chat.completions.create({
+          model: "gpt-4-turbo",
+          messages: [
+            {
+              role: "system",
+              content: "You are a calendar event extraction expert. Extract ONLY the actual information present in the document. Do NOT fabricate or make up any data."
+            },
+            {
+              role: "user",
+              content: `${prompt}\n\nDocument text:\n${extractedText.substring(0, 100000)}`
+            }
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 4096,
+        });
+      }
+
+      const extractedData = JSON.parse(response.choices[0].message.content || "{}");
+      console.log("Extracted meeting data:", JSON.stringify(extractedData, null, 2));
+      return extractedData;
+    } catch (error) {
+      console.error("Error extracting meeting data:", error);
+      throw new Error("Failed to extract meeting data from document");
     }
   }
 

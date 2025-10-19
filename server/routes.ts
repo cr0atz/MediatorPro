@@ -353,12 +353,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId
       );
 
-      // Extract case data using AI
-      let extractedData: any = {};
+      // Extract meeting/calendar data using AI (specifically for calendar invitations)
+      let meetingData: any = {};
       let extractedText = '';
       
       try {
-        extractedData = await aiService.extractCaseDataFromDocument(file.buffer, file.mimetype);
+        meetingData = await aiService.extractMeetingDataFromDocument(file.buffer, file.mimetype);
+        console.log("Meeting data extracted:", meetingData);
       } catch (error) {
         console.error("AI extraction failed:", error);
         // Return error instead of continuing with empty data
@@ -377,42 +378,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
         extractedText = '';
       }
 
-      // Create case record with extracted data
+      // Parse event date/time with fallback
+      let parsedDate = null;
+      if (meetingData.eventDateTime) {
+        try {
+          const dateObj = new Date(meetingData.eventDateTime);
+          // Check if date is valid
+          if (!isNaN(dateObj.getTime())) {
+            parsedDate = dateObj;
+          } else {
+            console.warn("Failed to parse eventDateTime:", meetingData.eventDateTime);
+          }
+        } catch (error) {
+          console.warn("Error parsing eventDateTime:", error);
+        }
+      }
+
+      // Build dispute background with all available information
+      const backgroundParts = [
+        meetingData.subject ? `Subject: ${meetingData.subject}` : null,
+        meetingData.description ? `Description: ${meetingData.description}` : null,
+        meetingData.eventDateTimeRaw ? `Scheduled: ${meetingData.eventDateTimeRaw}` : null,
+        meetingData.timeZone ? `Time Zone: ${meetingData.timeZone}` : null,
+        meetingData.questions ? `Client Details:\n${meetingData.questions}` : null,
+        meetingData.additionalDetails ? meetingData.additionalDetails : null
+      ].filter(Boolean);
+
+      // Map meeting data to case fields
+      const caseNumber = `MED-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
       const caseData = {
-        caseNumber: extractedData.caseNumber || `MED-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`,
-        mediationNumber: extractedData.mediationNumber,
+        caseNumber: caseNumber,
+        mediationNumber: caseNumber,
         mediatorId: userId,
-        mediatorName: extractedData.mediatorName,
-        mediationType: extractedData.mediationType || 'Remote',
-        mediationDate: extractedData.mediationDate ? new Date(extractedData.mediationDate) : null,
-        premises: extractedData.premises,
-        disputeBackground: extractedData.disputeBackground,
-        issuesForDiscussion: extractedData.issuesForDiscussion || [],
+        mediatorName: null, // Will be filled from user profile or settings
+        mediationType: 'Remote', // Default for calendar meetings
+        mediationDate: parsedDate,
+        premises: meetingData.location || null,
+        disputeBackground: backgroundParts.length > 0 ? backgroundParts.join('\n\n') : null,
+        issuesForDiscussion: meetingData.eventType ? [meetingData.eventType] : [],
         status: 'active' as const
       };
 
       const validatedCaseData = insertCaseSchema.parse(caseData);
       const newCase = await storage.createCase(validatedCaseData);
 
-      // Create parties if extracted
-      if (extractedData.parties && extractedData.parties.length > 0) {
-        for (const party of extractedData.parties) {
-          const partyData = {
-            caseId: newCase.id,
-            entityName: party.entityName,
-            partyType: party.partyType,
-            primaryContactName: party.primaryContactName,
-            primaryContactRole: party.primaryContactRole,
-            primaryContactEmail: party.primaryContactEmail,
-            primaryContactPhone: party.primaryContactPhone,
-            legalRepName: party.legalRepName,
-            legalRepFirm: party.legalRepFirm,
-            legalRepEmail: party.legalRepEmail,
-            legalRepPhone: party.legalRepPhone,
-          };
-          const validatedPartyData = insertPartySchema.parse(partyData);
-          await storage.createParty(validatedPartyData);
-        }
+      // Create party from invitee information
+      if (meetingData.inviteeName || meetingData.inviteeEmail) {
+        const partyData = {
+          caseId: newCase.id,
+          entityName: meetingData.inviteeName || meetingData.inviteeEmail || 'Unknown Client',
+          partyType: 'applicant' as const,
+          primaryContactName: meetingData.inviteeName || null,
+          primaryContactRole: 'Client',
+          primaryContactEmail: meetingData.inviteeEmail || null,
+          primaryContactPhone: null,
+          legalRepName: null,
+          legalRepFirm: null,
+          legalRepEmail: null,
+          legalRepPhone: null,
+        };
+        const validatedPartyData = insertPartySchema.parse(partyData);
+        await storage.createParty(validatedPartyData);
       }
 
       // Create document record (sanitize extracted text to prevent UTF-8 encoding errors)
@@ -434,7 +460,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         case: newCase, 
-        extractedData: extractedData,
+        meetingData: meetingData,
         message: "Meeting created successfully from file" 
       });
 
