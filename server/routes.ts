@@ -214,6 +214,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to sanitize text for PostgreSQL (remove null bytes and control characters)
+  const sanitizeTextForPostgres = (text: string | null | undefined): string | null => {
+    if (!text) return null;
+    // Remove null bytes and other problematic control characters
+    return text.replace(/\x00/g, '').replace(/[\x01-\x08\x0B-\x0C\x0E-\x1F]/g, '').trim() || null;
+  };
+
   app.post('/api/cases/create-from-upload', isAuthenticated, upload.single('document'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -250,6 +257,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract text content for future RAG queries
       try {
         extractedText = await aiService.extractTextFromDocument(file.buffer, file.mimetype);
+        // Sanitize the extracted text to remove null bytes
+        extractedText = sanitizeTextForPostgres(extractedText) || '';
       } catch (error) {
         console.error("Text extraction failed:", error);
         extractedText = '';
@@ -361,6 +370,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract text content (for RAG queries later)
       try {
         extractedText = await aiService.extractTextFromDocument(file.buffer, file.mimetype);
+        // Sanitize the extracted text to remove null bytes
+        extractedText = sanitizeTextForPostgres(extractedText) || '';
       } catch (error) {
         console.error("Text extraction failed (non-critical):", error);
         extractedText = '';
@@ -404,7 +415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Create document record (only store extracted text if it's valid)
+      // Create document record (sanitize extracted text to prevent UTF-8 encoding errors)
       const documentData = {
         caseId: newCase.id,
         fileName: file.filename || `document_${Date.now()}`,
@@ -413,7 +424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mimeType: file.mimetype,
         category: 'Legal Document',
         objectPath: objectPath,
-        extractedText: extractedText || null, // Store null if extraction failed
+        extractedText: sanitizeTextForPostgres(extractedText), // Sanitized to remove null bytes
         isProcessed: !!extractedText, // Only mark as processed if text extraction succeeded
         uploadedBy: userId,
       };
@@ -503,7 +514,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       // Extract text content for RAG
-      const extractedText = await aiService.extractTextFromDocument(file.buffer, file.mimetype);
+      let extractedText = await aiService.extractTextFromDocument(file.buffer, file.mimetype);
+      // Sanitize the extracted text to remove null bytes
+      extractedText = sanitizeTextForPostgres(extractedText) || '';
 
       // Create document record
       const documentData = {
@@ -554,6 +567,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Extract text from the buffer
         extractedText = await aiService.extractTextFromDocument(fileBuffer, mimeType || 'application/octet-stream');
+        // Sanitize the extracted text to remove null bytes
+        extractedText = sanitizeTextForPostgres(extractedText) || '';
         isProcessed = true;
       } catch (extractError) {
         console.error("Error extracting text from uploaded document:", extractError);
@@ -600,6 +615,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const fileStorage = new LocalFileStorageService();
         const fileBuffer = await fileStorage.readFile(document.objectPath);
         extractedText = await aiService.extractTextFromDocument(fileBuffer, document.mimeType);
+        // Sanitize the extracted text to remove null bytes
+        extractedText = sanitizeTextForPostgres(extractedText) || '';
         isProcessed = true;
       } catch (extractError) {
         console.error("Error re-parsing document:", extractError);
