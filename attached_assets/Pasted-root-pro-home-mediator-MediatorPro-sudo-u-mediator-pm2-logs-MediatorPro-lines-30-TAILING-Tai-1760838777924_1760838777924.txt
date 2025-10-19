@@ -1,0 +1,129 @@
+root@pro:/home/mediator/MediatorPro# sudo -u mediator pm2 logs MediatorPro --lines 30
+[TAILING] Tailing last 30 lines for [MediatorPro] process (change the value with --lines option)
+/home/mediator/MediatorPro/logs/error-0.log last 30 lines:
+0|Mediator |       duplex: 'half'
+0|Mediator |     },
+0|Mediator |     [Symbol(Body internals)]: {
+0|Mediator |       body: [Gunzip],
+0|Mediator |       stream: [Gunzip],
+0|Mediator |       boundary: null,
+0|Mediator |       disturbed: true,
+0|Mediator |       error: null
+0|Mediator |     },
+0|Mediator |     [Symbol(Response internals)]: {
+0|Mediator |       type: 'default',
+0|Mediator |       url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+0|Mediator |       status: 400,
+0|Mediator |       statusText: 'Bad Request',
+0|Mediator |       headers: [Object],
+0|Mediator |       counter: 0,
+0|Mediator |       highWaterMark: 16384
+0|Mediator |     }
+0|Mediator |   },
+0|Mediator |   code: 400,
+0|Mediator |   status: 400,
+0|Mediator |   error: undefined,
+0|Mediator |   [Symbol(gaxios-gaxios-error)]: '7.1.2',
+0|Mediator |   [cause]: {
+0|Mediator |     message: 'Invalid To header',
+0|Mediator |     code: 400,
+0|Mediator |     status: 'INVALID_ARGUMENT',
+0|Mediator |     errors: [ [Object] ]
+0|Mediator |   }
+0|Mediator | }
+
+/home/mediator/MediatorPro/logs/out-0.log last 30 lines:
+0|Mediator | 2025-10-19T01:32:55: 1:32:55 AM [express] GET /api/calendar/events 401 in 2ms :: {"message":"Unauthorized"}
+0|Mediator | 2025-10-19T01:34:08: 1:34:08 AM [express] GET /api/zoom-settings 304 in 81ms :: {"id":"cca30a08-181a-46c8-a81c-f2fcc7ea37…
+0|Mediator | 2025-10-19T01:34:08: 1:34:08 AM [express] GET /api/email/templates 304 in 87ms :: [{"id":"7dc5afc5-8bc4-42e3-8cdc-43dae71…
+0|Mediator | 2025-10-19T01:34:08: 1:34:08 AM [express] GET /api/calendar-settings 200 in 93ms :: {"id":"eef0082f-5945-4ee4-afea-d5b6f5…
+0|Mediator | 2025-10-19T01:36:25: 1:36:25 AM [express] GET /api/calendar/oauth/callback 400 in 3ms
+0|Mediator | 2025-10-19T01:45:19: 1:45:19 AM [express] GET /api/email/templates 304 in 30ms :: [{"id":"7dc5afc5-8bc4-42e3-8cdc-43dae71…
+0|Mediator | 2025-10-19T01:45:19: 1:45:19 AM [express] GET /api/calendar-settings 304 in 8ms :: {"id":"eef0082f-5945-4ee4-afea-d5b6f5c…
+0|Mediator | 2025-10-19T01:45:20: 1:45:20 AM [express] GET /api/calendar/connection-status 304 in 7ms :: {"connected":false,"scopes":[…
+0|Mediator | 2025-10-19T01:45:24: Google Calendar OAuth Redirect URI: https://pro.mediator.life/api/calendar/oauth/callback
+0|Mediator | 2025-10-19T01:45:24: PRODUCTION_DOMAIN: pro.mediator.life
+0|Mediator | 2025-10-19T01:45:24: REPLIT_DEV_DOMAIN: undefined
+0|Mediator | 2025-10-19T01:45:24: 1:45:24 AM [express] GET /api/calendar/oauth/init 200 in 31ms :: {"authUrl":"https://accounts.google…
+0|Mediator | 2025-10-19T01:46:14: Google Calendar OAuth Redirect URI: https://pro.mediator.life/api/calendar/oauth/callback
+0|Mediator | 2025-10-19T01:46:14: PRODUCTION_DOMAIN: pro.mediator.life
+0|Mediator | 2025-10-19T01:46:14: REPLIT_DEV_DOMAIN: undefined
+0|Mediator | 2025-10-19T01:47:10: 1:47:10 AM [express] GET /api/calendar/oauth/callback 302 in 55985ms
+0|Mediator | 2025-10-19T01:47:23: 1:47:23 AM [express] GET /api/email/templates 304 in 34ms :: [{"id":"7dc5afc5-8bc4-42e3-8cdc-43dae71…
+0|Mediator | 2025-10-19T01:47:23: 1:47:23 AM [express] GET /api/smtp-settings 304 in 43ms :: {"id":"295fee23-9d5f-43fc-9ea7-f5d15c0c01…
+0|Mediator | 2025-10-19T01:49:28: Google Calendar OAuth Redirect URI: https://pro.mediator.life/api/calendar/oauth/callback
+0|Mediator | 2025-10-19T01:49:28: PRODUCTION_DOMAIN: pro.mediator.life
+0|Mediator | 2025-10-19T01:49:28: REPLIT_DEV_DOMAIN: undefined
+0|Mediator | 2025-10-19T01:49:30: 1:49:30 AM [express] POST /api/cases/f3a77520-6190-46b1-a9e8-6b0dd44d27b7/sync-to-calendar 200 in 13…
+0|Mediator | 2025-10-19T01:49:30: 1:49:30 AM [express] GET /api/cases/f3a77520-6190-46b1-a9e8-6b0dd44d27b7 200 in 15ms :: {"id":"f3a77…
+0|Mediator | 2025-10-19T01:49:32: Google Calendar OAuth Redirect URI: https://pro.mediator.life/api/calendar/oauth/callback
+0|Mediator | 2025-10-19T01:49:32: PRODUCTION_DOMAIN: pro.mediator.life
+0|Mediator | 2025-10-19T01:49:32: REPLIT_DEV_DOMAIN: undefined
+0|Mediator | 2025-10-19T01:49:32: 1:49:32 AM [express] GET /api/calendar/events 200 in 238ms :: [{"kind":"calendar#event","etag":"\"35…
+0|Mediator | 2025-10-19T01:50:11: 1:50:11 AM [express] GET /api/cases/f3a77520-6190-46b1-a9e8-6b0dd44d27b7/documents 200 in 48ms :: [{…
+0|Mediator | 2025-10-19T01:50:13: 1:50:13 AM [express] GET /api/cases/f3a77520-6190-46b1-a9e8-6b0dd44d27b7/notes 200 in 8ms :: []
+0|Mediator | 2025-10-19T01:51:39: 1:51:39 AM [express] GET /api/documents/all 200 in 7ms
+
+/home/mediator/MediatorPro/logs/error-1.log last 30 lines:
+1|Mediator |     at isAuthenticated (file:///home/mediator/MediatorPro/dist/index.js:1225:12)
+1|Mediator |     at Layer.handle [as handle_request] (/home/mediator/MediatorPro/node_modules/express/lib/router/layer.js:95:5)
+1|Mediator |     at next (/home/mediator/MediatorPro/node_modules/express/lib/router/route.js:149:13)
+1|Mediator |     at Route.dispatch (/home/mediator/MediatorPro/node_modules/express/lib/router/route.js:119:3)
+1|Mediator |     at Layer.handle [as handle_request] (/home/mediator/MediatorPro/node_modules/express/lib/router/layer.js:95:5)
+1|Mediator |     at /home/mediator/MediatorPro/node_modules/express/lib/router/index.js:284:15
+1|Mediator | 2025-10-19T01:52:05: Error creating case from upload: error: invalid byte sequence for encoding "UTF8": 0x00
+1|Mediator |     at /home/mediator/MediatorPro/node_modules/pg-pool/index.js:45:11
+1|Mediator |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+1|Mediator |     at async file:///home/mediator/MediatorPro/node_modules/drizzle-orm/node-postgres/session.js:83:22
+1|Mediator |     at async DatabaseStorage.createDocument (file:///home/mediator/MediatorPro/dist/index.js:945:24)
+1|Mediator |     at async file:///home/mediator/MediatorPro/dist/index.js:2148:7 {
+1|Mediator |   length: 146,
+1|Mediator |   severity: 'ERROR',
+1|Mediator |   code: '22021',
+1|Mediator |   detail: undefined,
+1|Mediator |   hint: undefined,
+1|Mediator |   position: undefined,
+1|Mediator |   internalPosition: undefined,
+1|Mediator |   internalQuery: undefined,
+1|Mediator |   where: 'unnamed portal parameter $8',
+1|Mediator |   schema: undefined,
+1|Mediator |   table: undefined,
+1|Mediator |   column: undefined,
+1|Mediator |   dataType: undefined,
+1|Mediator |   constraint: undefined,
+1|Mediator |   file: 'mbutils.c',
+1|Mediator |   line: '1723',
+1|Mediator |   routine: 'report_invalid_encoding'
+1|Mediator | }
+
+/home/mediator/MediatorPro/logs/out-1.log last 30 lines:
+1|Mediator | 2025-10-19T01:45:51: PRODUCTION_DOMAIN: pro.mediator.life
+1|Mediator | 2025-10-19T01:45:51: REPLIT_DEV_DOMAIN: undefined
+1|Mediator | 2025-10-19T01:45:51: 1:45:51 AM [express] GET /api/calendar/oauth/init 200 in 29ms :: {"authUrl":"https://accounts.google…
+1|Mediator | 2025-10-19T01:47:14: 1:47:14 AM [express] GET /api/auth/user 304 in 31ms :: {"id":"danny","email":"danny@localhost","firs…
+1|Mediator | 2025-10-19T01:47:14: 1:47:14 AM [express] GET /api/cases 304 in 11ms :: [{"id":"f3a77520-6190-46b1-a9e8-6b0dd44d27b7","ca…
+1|Mediator | 2025-10-19T01:47:23: 1:47:23 AM [express] GET /api/zoom-settings 304 in 22ms :: {"id":"cca30a08-181a-46c8-a81c-f2fcc7ea37…
+1|Mediator | 2025-10-19T01:47:23: 1:47:23 AM [express] GET /api/calendar-settings 200 in 36ms :: {"id":"eef0082f-5945-4ee4-afea-d5b6f5…
+1|Mediator | 2025-10-19T01:47:23: Google Calendar OAuth Redirect URI: https://pro.mediator.life/api/calendar/oauth/callback
+1|Mediator | 2025-10-19T01:47:23: PRODUCTION_DOMAIN: pro.mediator.life
+1|Mediator | 2025-10-19T01:47:23: REPLIT_DEV_DOMAIN: undefined
+1|Mediator | 2025-10-19T01:47:24: 1:47:24 AM [express] GET /api/calendar/connection-status 200 in 46ms :: {"connected":true,"scopes":[…
+1|Mediator | 2025-10-19T01:47:37: 1:47:37 AM [express] GET /api/auth/user 304 in 29ms :: {"id":"danny","email":"danny@localhost","firs…
+1|Mediator | 2025-10-19T01:47:37: 1:47:37 AM [express] GET /api/cases 304 in 10ms :: [{"id":"f3a77520-6190-46b1-a9e8-6b0dd44d27b7","ca…
+1|Mediator | 2025-10-19T01:47:53: 1:47:53 AM [express] GET /api/cases/f3a77520-6190-46b1-a9e8-6b0dd44d27b7 304 in 35ms :: {"id":"f3a77…
+1|Mediator | 2025-10-19T01:48:00: Google Calendar OAuth Redirect URI: https://pro.mediator.life/api/calendar/oauth/callback
+1|Mediator | 2025-10-19T01:48:00: PRODUCTION_DOMAIN: pro.mediator.life
+1|Mediator | 2025-10-19T01:48:00: REPLIT_DEV_DOMAIN: undefined
+1|Mediator | 2025-10-19T01:48:01: 1:48:01 AM [express] GET /api/calendar/events 200 in 1220ms :: []
+1|Mediator | 2025-10-19T01:48:28: Google Calendar OAuth Redirect URI: https://pro.mediator.life/api/calendar/oauth/callback
+1|Mediator | 2025-10-19T01:48:28: PRODUCTION_DOMAIN: pro.mediator.life
+1|Mediator | 2025-10-19T01:48:28: REPLIT_DEV_DOMAIN: undefined
+1|Mediator | 2025-10-19T01:48:29: 1:48:29 AM [express] POST /api/cases/f3a77520-6190-46b1-a9e8-6b0dd44d27b7/sync-to-calendar 200 in 86…
+1|Mediator | 2025-10-19T01:48:29: 1:48:29 AM [express] GET /api/cases/f3a77520-6190-46b1-a9e8-6b0dd44d27b7 200 in 13ms :: {"id":"f3a77…
+1|Mediator | 2025-10-19T01:48:31: Google Calendar OAuth Redirect URI: https://pro.mediator.life/api/calendar/oauth/callback
+1|Mediator | 2025-10-19T01:48:31: PRODUCTION_DOMAIN: pro.mediator.life
+1|Mediator | 2025-10-19T01:48:31: REPLIT_DEV_DOMAIN: undefined
+1|Mediator | 2025-10-19T01:48:31: 1:48:31 AM [express] GET /api/calendar/events 200 in 229ms :: [{"kind":"calendar#event","etag":"\"35…
+1|Mediator | 2025-10-19T01:49:19: 1:49:19 AM [express] PATCH /api/cases/f3a77520-6190-46b1-a9e8-6b0dd44d27b7 200 in 53ms :: {"id":"f3a…
+1|Mediator | 2025-10-19T01:49:19: 1:49:19 AM [express] GET /api/cases/f3a77520-6190-46b1-a9e8-6b0dd44d27b7 200 in 13ms :: {"id":"f3a77…
+1|Mediator | 2025-10-19T01:52:05: 1:52:05 AM [express] POST /api/cases/create-from-upload 500 in 5108ms :: {"message":"Failed to creat…
