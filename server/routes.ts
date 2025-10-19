@@ -378,16 +378,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         extractedText = '';
       }
 
-      // Parse event date/time with fallback
+      // Parse event date/time with timezone handling
       let parsedDate = null;
       if (meetingData.eventDateTime) {
         try {
-          const dateObj = new Date(meetingData.eventDateTime);
+          let dateTimeString = meetingData.eventDateTime;
+          
+          // Check if timezone is already specified (offset like +11:00 or Z for UTC)
+          const hasTimezoneOffset = /([+-]\d{2}:\d{2}|Z)$/.test(dateTimeString);
+          
+          if (!hasTimezoneOffset) {
+            // No timezone - need to add one to preserve exact time
+            let offset = '+11:00'; // Default
+            
+            // Try to determine offset from timezone field
+            if (meetingData.timeZone) {
+              const tzLower = meetingData.timeZone.toLowerCase();
+              if (tzLower.includes('aest') || tzLower.includes('standard')) {
+                offset = '+10:00'; // AEST (Australian Eastern Standard Time - winter)
+              } else if (tzLower.includes('aedt') || tzLower.includes('daylight')) {
+                offset = '+11:00'; // AEDT (Australian Eastern Daylight Time - summer)
+              } else if (tzLower.includes('sydney') || tzLower.includes('melbourne')) {
+                // For Sydney/Melbourne, determine AEST vs AEDT based on month
+                // Extract month from the ISO string (YYYY-MM-DD...)
+                const monthMatch = dateTimeString.match(/^\d{4}-(\d{2})-/);
+                if (monthMatch) {
+                  const month = parseInt(monthMatch[1], 10);
+                  // AEDT: October-March (months 10, 11, 12, 1, 2, 3)
+                  // AEST: April-September (months 4, 5, 6, 7, 8, 9)
+                  if (month >= 10 || month <= 3) {
+                    offset = '+11:00'; // AEDT (daylight saving)
+                  } else {
+                    offset = '+10:00'; // AEST (standard time)
+                  }
+                }
+              }
+            }
+            
+            // Add timezone offset to preserve exact time
+            dateTimeString = dateTimeString + offset;
+            console.log(`Added timezone offset ${offset} to datetime: ${dateTimeString}`);
+          }
+          
+          const dateObj = new Date(dateTimeString);
           // Check if date is valid
           if (!isNaN(dateObj.getTime())) {
             parsedDate = dateObj;
+            console.log(`Successfully parsed date: ${dateObj.toISOString()} (local: ${dateObj.toLocaleString('en-AU', {timeZone: 'Australia/Sydney'})})`);
           } else {
-            console.warn("Failed to parse eventDateTime:", meetingData.eventDateTime);
+            console.warn("Failed to parse eventDateTime:", dateTimeString);
           }
         } catch (error) {
           console.warn("Error parsing eventDateTime:", error);

@@ -226,17 +226,24 @@ Return JSON with these fields (omit if not found):
 - eventType: Type of event/consultation
 - inviteeName: Name of the invitee/attendee
 - inviteeEmail: Email address of invitee
-- eventDateTime: Date and time of event in ISO 8601 format (YYYY-MM-DDTHH:MM:SS) if possible, otherwise the raw text
+- eventDateTime: Date and time of event in ISO 8601 format WITH timezone offset (YYYY-MM-DDTHH:MM:SS+HH:MM)
 - eventDateTimeRaw: Original date/time text as it appears in the document
 - location: Location, phone number, or meeting link
 - description: Event description
 - questions: Questions or notes section
 - additionalDetails: Any other relevant details
 - subject: Email subject if present
-- timeZone: Time zone information
+- timeZone: Time zone information (e.g., "Sydney, Melbourne Time", "AEDT", "AEST")
 
-IMPORTANT for eventDateTime: Try to convert dates to ISO format (YYYY-MM-DDTHH:MM:SS).
-For example: "12:30pm - Monday, 20 October 2025" becomes "2025-10-20T12:30:00"
+CRITICAL for eventDateTime: 
+1. Find the timezone mentioned in the document (e.g., "Sydney, Melbourne Time" = AEDT/AEST)
+2. Convert to ISO format WITH timezone offset included
+3. AEDT (Australian Eastern Daylight Time) = +11:00
+4. AEST (Australian Eastern Standard Time) = +10:00
+5. Example: "12:30pm - Monday, 20 October 2025 (Sydney, Melbourne Time)" becomes "2025-10-20T12:30:00+11:00" in October (AEDT)
+6. DO NOT convert the time itself - preserve the exact time shown (12:30pm stays 12:30)
+7. Always include the timezone offset in the ISO string
+
 If you cannot confidently parse the date, still return the raw text in eventDateTimeRaw.
 
 Return only valid JSON with actual extracted values.`;
