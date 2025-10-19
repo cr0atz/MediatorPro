@@ -283,7 +283,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Scheduled Sessions</p>
                   <p className="text-3xl font-bold text-foreground mt-2" data-testid="text-scheduled-sessions">
-                    {cases.filter((c: Case) => c.status === 'scheduled').length}
+                    {cases.filter((c: Case) => c.mediationDate && new Date(c.mediationDate) > new Date()).length}
                   </p>
                   <p className="text-xs text-accent-foreground mt-2 flex items-center">
                     <i className="fas fa-calendar text-blue-500 mr-1"></i>
