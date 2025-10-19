@@ -15,6 +15,7 @@ export default function Dashboard() {
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const meetingFileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: cases = [], isLoading } = useQuery({
     queryKey: ["/api/cases"],
@@ -98,6 +99,71 @@ export default function Dashboard() {
     fileInputRef.current?.click();
   };
 
+  // New mutation for creating meeting from file
+  const createMeetingMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/cases/create-from-file', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create meeting from file');
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Success",
+        description: `Meeting created successfully: ${data.case.caseNumber}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
+      // Optionally navigate to the newly created case
+      if (data.case?.id) {
+        setSelectedCaseId(data.case.id);
+      }
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create meeting from file",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleMeetingFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      createMeetingMutation.mutate(file);
+    }
+    // Reset the input
+    if (meetingFileInputRef.current) {
+      meetingFileInputRef.current.value = '';
+    }
+  };
+
+  const triggerMeetingFileUpload = () => {
+    meetingFileInputRef.current?.click();
+  };
+
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'active':
@@ -148,8 +214,26 @@ export default function Dashboard() {
                 <span>Filter</span>
               </Button>
               <Button
+                onClick={triggerMeetingFileUpload}
+                disabled={createMeetingMutation.isPending}
+                className="flex items-center space-x-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                data-testid="button-create-meeting-file"
+              >
+                <i className="fas fa-calendar-plus"></i>
+                <span>{createMeetingMutation.isPending ? 'Creating...' : 'Create Meeting from File'}</span>
+              </Button>
+              <input
+                type="file"
+                ref={meetingFileInputRef}
+                onChange={handleMeetingFileUpload}
+                accept=".pdf,.doc,.docx"
+                className="hidden"
+                data-testid="input-meeting-file-upload"
+              />
+              <Button
                 onClick={triggerFileUpload}
                 disabled={uploadMutation.isPending}
+                variant="outline"
                 className="flex items-center space-x-2"
                 data-testid="button-upload-case"
               >

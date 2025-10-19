@@ -321,6 +321,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // New route: Create meeting/case from file upload (PDF, DOC, DOCX)
+  app.post('/api/cases/create-from-file', isAuthenticated, upload.single('file'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Save file to local storage first
+      const fileStorage = new LocalFileStorageService();
+      const objectPath = await fileStorage.saveFile(
+        file.buffer,
+        {
+          contentType: file.mimetype,
+          size: file.size,
+          uploadedAt: new Date().toISOString(),
+          userId: userId,
+        },
+        userId
+      );
+
+      // Extract case data using AI
+      let extractedData: any = {};
+      let extractedText = '';
+      
+      try {
+        extractedData = await aiService.extractCaseDataFromDocument(file.buffer, file.mimetype);
+      } catch (error) {
+        console.error("AI extraction failed:", error);
+        // Return error instead of continuing with empty data
+        return res.status(500).json({ 
+          message: "Failed to extract meeting details from file. Please try a different file or create the case manually." 
+        });
+      }
+      
+      // Extract text content (for RAG queries later)
+      try {
+        extractedText = await aiService.extractTextFromDocument(file.buffer, file.mimetype);
+      } catch (error) {
+        console.error("Text extraction failed (non-critical):", error);
+        extractedText = '';
+      }
+
+      // Create case record with extracted data
+      const caseData = {
+        caseNumber: extractedData.caseNumber || `MED-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`,
+        mediationNumber: extractedData.mediationNumber,
+        mediatorId: userId,
+        mediatorName: extractedData.mediatorName,
+        mediationType: extractedData.mediationType || 'Remote',
+        mediationDate: extractedData.mediationDate ? new Date(extractedData.mediationDate) : null,
+        premises: extractedData.premises,
+        disputeBackground: extractedData.disputeBackground,
+        issuesForDiscussion: extractedData.issuesForDiscussion || [],
+        status: 'active' as const
+      };
+
+      const validatedCaseData = insertCaseSchema.parse(caseData);
+      const newCase = await storage.createCase(validatedCaseData);
+
+      // Create parties if extracted
+      if (extractedData.parties && extractedData.parties.length > 0) {
+        for (const party of extractedData.parties) {
+          const partyData = {
+            caseId: newCase.id,
+            entityName: party.entityName,
+            partyType: party.partyType,
+            primaryContactName: party.primaryContactName,
+            primaryContactRole: party.primaryContactRole,
+            primaryContactEmail: party.primaryContactEmail,
+            primaryContactPhone: party.primaryContactPhone,
+            legalRepName: party.legalRepName,
+            legalRepFirm: party.legalRepFirm,
+            legalRepEmail: party.legalRepEmail,
+            legalRepPhone: party.legalRepPhone,
+          };
+          const validatedPartyData = insertPartySchema.parse(partyData);
+          await storage.createParty(validatedPartyData);
+        }
+      }
+
+      // Create document record (only store extracted text if it's valid)
+      const documentData = {
+        caseId: newCase.id,
+        fileName: file.filename || `document_${Date.now()}`,
+        originalName: file.originalname,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+        category: 'Legal Document',
+        objectPath: objectPath,
+        extractedText: extractedText || null, // Store null if extraction failed
+        isProcessed: !!extractedText, // Only mark as processed if text extraction succeeded
+        uploadedBy: userId,
+      };
+
+      const validatedDocumentData = insertDocumentSchema.parse(documentData);
+      await storage.createDocument(validatedDocumentData);
+
+      res.json({ 
+        case: newCase, 
+        extractedData: extractedData,
+        message: "Meeting created successfully from file" 
+      });
+
+    } catch (error) {
+      console.error("Error creating meeting from file:", error);
+      res.status(500).json({ message: "Failed to create meeting from file" });
+    }
+  });
+
   app.delete('/api/cases/:id', isAuthenticated, async (req, res) => {
     try {
       const caseId = req.params.id;
