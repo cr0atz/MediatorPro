@@ -635,6 +635,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Recipients are required" });
       }
 
+      // Extract email addresses from recipient objects (frontend sends {email, name, role})
+      const recipientEmails = Array.isArray(recipients) 
+        ? recipients.map((r: any) => typeof r === 'string' ? r : r.email)
+        : [typeof recipients === 'string' ? recipients : recipients.email];
+
       // Get case data for template replacement
       const caseData = await storage.getCase(caseId);
       if (!caseData) {
@@ -689,7 +694,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!text) return '';
         
         // Determine recipient name for {recipientName} placeholder
-        const recipientEmails = Array.isArray(recipients) ? recipients : [recipients];
         let recipientName = '[Recipient Name]';
         
         if (recipientEmails.length === 1) {
@@ -753,9 +757,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Convert email body to HTML (preserve line breaks)
       const htmlBody = emailBody.replace(/\n/g, '<br/>');
-
-      // Support multiple recipients
-      const recipientEmails = Array.isArray(recipients) ? recipients : [recipients];
       
       const messageIds = await gmailService.sendBulkEmail({
         recipients: recipientEmails,
