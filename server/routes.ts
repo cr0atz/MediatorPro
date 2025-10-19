@@ -627,28 +627,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Email communication routes
   app.post('/api/cases/:id/email', isAuthenticated, async (req: any, res) => {
     try {
-      const { template, recipients, subject, message, templateData } = req.body;
+      const { template, recipients, subject, message } = req.body;
+      const userId = req.user.claims.sub;
+      const caseId = req.params.id;
 
       if (!recipients || recipients.length === 0) {
         return res.status(400).json({ message: "Recipients are required" });
       }
 
-      if (template === 'custom') {
+      // Get case data for template replacement
+      const caseData = await storage.getCase(caseId);
+      if (!caseData) {
+        return res.status(404).json({ message: "Case not found" });
+      }
+
+      // Get parties for template data
+      const parties = await storage.getPartiesByCase(caseId);
+      const applicants = parties.filter(p => p.partyType === 'applicant');
+      const respondents = parties.filter(p => p.partyType === 'respondent');
+
+      // Get user's mediator email for CC
+      const user = await storage.getUser(userId);
+      const mediatorEmail = user?.mediatorEmail || undefined;
+
+      // Get Google Calendar settings for Gmail
+      const settings = await storage.getCalendarSettings(userId);
+      if (!settings || !settings.accessToken || !settings.refreshToken) {
+        return res.status(400).json({ message: "Google account not connected. Please connect to Google Calendar first." });
+      }
+
+      const { GmailService } = await import('./gmailService.js');
+      const gmailService = new GmailService(settings);
+
+      let emailSubject = subject;
+      let emailBody = message;
+
+      // Check if template is a UUID (database template)
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(template);
+      
+      if (isUUID) {
+        // Fetch template from database
+        const dbTemplate = await storage.getEmailTemplate(template);
+        if (!dbTemplate) {
+          return res.status(404).json({ message: "Email template not found" });
+        }
+        
+        // Use client-provided subject/body if available, otherwise use template defaults
+        emailSubject = subject || dbTemplate.subject;
+        emailBody = message || dbTemplate.body;
+      } else if (template === 'custom') {
+        // Validate custom emails have subject and message
         if (!subject || !message) {
           return res.status(400).json({ message: "Subject and message are required for custom emails" });
         }
-        await emailService.sendCustomEmail(recipients, subject, message);
       } else {
-        if (!templateData) {
-          return res.status(400).json({ message: "Template data is required" });
-        }
-        await emailService.sendEmail(template, recipients, templateData);
+        return res.status(400).json({ message: "Invalid template" });
       }
 
-      res.json({ message: "Email sent successfully" });
-    } catch (error) {
+      // Replace placeholders in subject and body
+      const replacePlaceholders = (text: string): string => {
+        if (!text) return '';
+        
+        // Determine recipient name for {recipientName} placeholder
+        const recipientEmails = Array.isArray(recipients) ? recipients : [recipients];
+        let recipientName = '[Recipient Name]';
+        
+        if (recipientEmails.length === 1) {
+          // Try to find the recipient name from parties
+          const allContacts = [
+            ...applicants.map(p => ({ email: p.primaryContactEmail, name: p.primaryContactName })),
+            ...applicants.map(p => ({ email: p.legalRepEmail, name: p.legalRepName })),
+            ...respondents.map(p => ({ email: p.primaryContactEmail, name: p.primaryContactName })),
+            ...respondents.map(p => ({ email: p.legalRepEmail, name: p.legalRepName }))
+          ].filter(c => c.email);
+          
+          const match = allContacts.find(c => c.email === recipientEmails[0]);
+          recipientName = match?.name || recipientEmails[0];
+        } else if (recipientEmails.length > 1) {
+          recipientName = 'All';
+        }
+        
+        let result = text;
+        
+        // Replace basic case placeholders
+        result = result
+          .replace(/\{caseNumber\}/g, caseData.caseNumber || '[Case Number]')
+          .replace(/\{mediatorName\}/g, caseData.mediatorName || '[Mediator Name]')
+          .replace(/\{mediationDate\}/g, caseData.mediationDate ? new Date(caseData.mediationDate).toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' }) : '[Mediation Date]')
+          .replace(/\{mediationTime\}/g, caseData.mediationDate ? new Date(caseData.mediationDate).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : '[Mediation Time]')
+          .replace(/\{mediationType\}/g, caseData.mediationType || '[Mediation Type]')
+          .replace(/\{recipientName\}/g, recipientName)
+          .replace(/\{zoomLink\}/g, caseData.zoomMeetingLink || '[Zoom Link]')
+          .replace(/\{zoomPassword\}/g, caseData.zoomMeetingPassword || '[Zoom Password]')
+          .replace(/\{premises\}/g, caseData.premises || '[Location]');
+        
+        // Replace applicant placeholders (indexed from 1)
+        applicants.forEach((applicant, index) => {
+          const num = index + 1;
+          result = result
+            .replace(new RegExp(`\\{applicant_${num}_name\\}`, 'g'), applicant.entityName || `[Applicant ${num} Name]`)
+            .replace(new RegExp(`\\{applicant_${num}_contact\\}`, 'g'), applicant.primaryContactName || `[Applicant ${num} Contact]`)
+            .replace(new RegExp(`\\{applicant_${num}_email\\}`, 'g'), applicant.primaryContactEmail || `[Applicant ${num} Email]`)
+            .replace(new RegExp(`\\{applicant_${num}_phone\\}`, 'g'), applicant.primaryContactPhone || `[Applicant ${num} Phone]`)
+            .replace(new RegExp(`\\{applicant_${num}_lawyer\\}`, 'g'), applicant.legalRepName || `[Applicant ${num} Lawyer]`)
+            .replace(new RegExp(`\\{applicant_${num}_lawyer_firm\\}`, 'g'), applicant.legalRepFirm || `[Applicant ${num} Law Firm]`);
+        });
+        
+        // Replace respondent placeholders (indexed from 1)
+        respondents.forEach((respondent, index) => {
+          const num = index + 1;
+          result = result
+            .replace(new RegExp(`\\{respondent_${num}_name\\}`, 'g'), respondent.entityName || `[Respondent ${num} Name]`)
+            .replace(new RegExp(`\\{respondent_${num}_contact\\}`, 'g'), respondent.primaryContactName || `[Respondent ${num} Contact]`)
+            .replace(new RegExp(`\\{respondent_${num}_email\\}`, 'g'), respondent.primaryContactEmail || `[Respondent ${num} Email]`)
+            .replace(new RegExp(`\\{respondent_${num}_phone\\}`, 'g'), respondent.primaryContactPhone || `[Respondent ${num} Phone]`)
+            .replace(new RegExp(`\\{respondent_${num}_lawyer\\}`, 'g'), respondent.legalRepName || `[Respondent ${num} Lawyer]`)
+            .replace(new RegExp(`\\{respondent_${num}_lawyer_firm\\}`, 'g'), respondent.legalRepFirm || `[Respondent ${num} Law Firm]`);
+        });
+        
+        return result;
+      };
+
+      emailSubject = replacePlaceholders(emailSubject);
+      emailBody = replacePlaceholders(emailBody);
+
+      // Convert email body to HTML (preserve line breaks)
+      const htmlBody = emailBody.replace(/\n/g, '<br/>');
+
+      // Support multiple recipients
+      const recipientEmails = Array.isArray(recipients) ? recipients : [recipients];
+      
+      const messageIds = await gmailService.sendBulkEmail({
+        recipients: recipientEmails,
+        subject: emailSubject,
+        html: htmlBody,
+        text: emailBody,
+        cc: mediatorEmail,
+      });
+
+      res.json({ 
+        message: "Email(s) sent successfully via Gmail API",
+        messageIds,
+        mediatorCc: mediatorEmail || 'Not configured'
+      });
+    } catch (error: any) {
       console.error("Error sending email:", error);
-      res.status(500).json({ message: "Failed to send email" });
+      res.status(500).json({ 
+        message: "Failed to send email",
+        error: error.message
+      });
     }
   });
 
