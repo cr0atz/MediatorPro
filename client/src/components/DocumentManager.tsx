@@ -68,24 +68,38 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
 
   const handleGetUploadParameters = async () => {
     try {
+      console.log('[DocumentManager] Getting upload parameters...');
       const response = await apiRequest('POST', '/api/objects/upload', {});
       const data = await response.json();
+      console.log('[DocumentManager] Upload parameters received:', data);
       return {
         method: 'PUT' as const,
         url: data.uploadURL,
       };
     } catch (error) {
-      console.error('Error getting upload parameters:', error);
+      console.error('[DocumentManager] Error getting upload parameters:', error);
       throw error;
     }
   };
 
   const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    console.log('[DocumentManager] Upload complete callback triggered');
+    console.log('[DocumentManager] Result:', result);
+    
     if (result.successful && result.successful.length > 0) {
+      console.log(`[DocumentManager] Processing ${result.successful.length} successful uploads`);
+      
       // Process all uploaded files with individual error handling
       const processResults = await Promise.allSettled(
         result.successful.map(async (uploadedFile) => {
           const uploadURL = uploadedFile.uploadURL || '';
+          
+          console.log('[DocumentManager] Processing file:', {
+            name: uploadedFile.name,
+            uploadURL: uploadURL,
+            size: uploadedFile.size,
+            type: uploadedFile.type,
+          });
           
           const response = await apiRequest('POST', `/api/cases/${caseId}/documents/process-upload`, {
             uploadURL: uploadURL,
@@ -96,12 +110,17 @@ export default function DocumentManager({ caseId }: DocumentManagerProps) {
           });
 
           if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[DocumentManager] Process upload failed:', errorText);
             throw new Error(`Failed to process ${uploadedFile.name}`);
           }
           
+          console.log('[DocumentManager] File processed successfully:', uploadedFile.name);
           return uploadedFile.name;
         })
       );
+      
+      console.log('[DocumentManager] All process results:', processResults);
 
       // Count successes and failures
       const succeeded = processResults.filter(r => r.status === 'fulfilled').length;
