@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import multer from 'multer';
 import { storage } from "./storage";
@@ -97,7 +98,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Direct file upload endpoint for local storage
+  // Direct file upload endpoint for local storage (POST with multipart/form-data)
   app.post("/api/documents/upload-local", isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -126,10 +127,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Legacy upload endpoint (for compatibility)
+  // PUT endpoint for Uppy's AwsS3 plugin (raw binary data)
+  app.put("/api/documents/upload-local/:fileId", 
+    isAuthenticated, 
+    express.raw({ type: '*/*', limit: '50mb' }), 
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const { fileId } = req.params;
+        
+        // req.body is a Buffer thanks to express.raw()
+        const fileBuffer = req.body;
+        
+        if (!fileBuffer || fileBuffer.length === 0) {
+          return res.status(400).json({ message: "No file data provided" });
+        }
+
+        // Get content type from headers
+        const contentType = req.headers['content-type'] || 'application/octet-stream';
+        
+        const fileStorage = new LocalFileStorageService();
+        const objectPath = await fileStorage.saveFile(
+          fileBuffer,
+          {
+            contentType: contentType,
+            size: fileBuffer.length,
+            uploadedAt: new Date().toISOString(),
+            userId: userId,
+          },
+          userId
+        );
+
+        res.json({ objectPath });
+      } catch (error) {
+        console.error("Error uploading file via PUT:", error);
+        res.status(500).json({ message: "Failed to upload file" });
+      }
+    }
+  );
+
+  // Upload parameters endpoint - generates unique upload URL for each file
   app.post("/api/objects/upload", isAuthenticated, async (req, res) => {
-    // Return local upload endpoint instead of presigned URL
-    res.json({ uploadURL: "/api/documents/upload-local" });
+    // Generate unique file ID for this upload
+    const fileId = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+    // Return upload URL with unique file ID
+    res.json({ uploadURL: `/api/documents/upload-local/${fileId}` });
   });
 
   // Case management routes
