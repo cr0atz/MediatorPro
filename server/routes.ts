@@ -136,16 +136,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const userId = req.user.claims.sub;
         const { fileId } = req.params;
         
+        console.log("=== PUT /api/documents/upload-local/:fileId DEBUG ===");
+        console.log("FileId:", fileId);
+        console.log("UserId:", userId);
+        console.log("Content-Type:", req.headers['content-type']);
+        console.log("Body type:", typeof req.body);
+        console.log("Body is Buffer:", Buffer.isBuffer(req.body));
+        console.log("Body length:", req.body ? req.body.length : 'null/undefined');
+        
         // req.body is a Buffer thanks to express.raw()
         const fileBuffer = req.body;
         
         if (!fileBuffer || fileBuffer.length === 0) {
+          console.error("PUT upload failed: No file data provided");
           return res.status(400).json({ message: "No file data provided" });
         }
 
         // Get content type from headers
         const contentType = req.headers['content-type'] || 'application/octet-stream';
         
+        console.log("Saving file to storage, size:", fileBuffer.length, "bytes");
         const fileStorage = new LocalFileStorageService();
         const objectPath = await fileStorage.saveFile(
           fileBuffer,
@@ -158,6 +168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId
         );
 
+        console.log("File saved successfully, objectPath:", objectPath);
         res.json({ objectPath });
       } catch (error) {
         console.error("Error uploading file via PUT:", error);
@@ -168,10 +179,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Upload parameters endpoint - generates unique upload URL for each file
   app.post("/api/objects/upload", isAuthenticated, async (req, res) => {
+    console.log("=== POST /api/objects/upload DEBUG ===");
+    console.log("Request body:", req.body);
+    
     // Generate unique file ID for this upload
     const fileId = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
-    // Return upload URL with unique file ID
-    res.json({ uploadURL: `/api/documents/upload-local/${fileId}` });
+    const uploadURL = `/api/documents/upload-local/${fileId}`;
+    
+    console.log("Generated upload URL:", uploadURL);
+    res.json({ uploadURL });
   });
 
   // Case management routes
@@ -654,28 +670,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { uploadURL, fileName, fileSize, mimeType, category } = req.body;
 
+      console.log("=== POST /api/cases/:id/documents/process-upload DEBUG ===");
+      console.log("CaseId:", req.params.id);
+      console.log("UserId:", userId);
+      console.log("Request body:", JSON.stringify(req.body, null, 2));
+
       if (!uploadURL) {
+        console.error("process-upload failed: No uploadURL provided");
         return res.status(400).json({ message: "Upload URL is required" });
       }
 
       // For local storage, uploadURL is actually the objectPath
       const objectPath = uploadURL;
+      console.log("ObjectPath for processing:", objectPath);
 
       // Extract text from the uploaded document
       let extractedText = '';
       let isProcessed = false;
       
       try {
+        console.log("Attempting to read file from storage...");
         const fileStorage = new LocalFileStorageService();
         
         // Read file from local storage
         const filePath = objectPath.replace("/objects/", "");
+        console.log("Reading file from path:", filePath);
         const fileBuffer = await fileStorage.readFile(filePath);
+        console.log("File read successfully, buffer size:", fileBuffer.length, "bytes");
         
         // Extract text from the buffer
+        console.log("Extracting text from document...");
         extractedText = await aiService.extractTextFromDocument(fileBuffer, mimeType || 'application/octet-stream');
+        console.log("Text extracted, length:", extractedText.length, "characters");
+        
         // Sanitize the extracted text to remove null bytes
         extractedText = sanitizeTextForPostgres(extractedText) || '';
+        console.log("Text sanitized, final length:", extractedText.length, "characters");
         isProcessed = true;
       } catch (extractError) {
         console.error("Error extracting text from uploaded document:", extractError);
@@ -683,6 +713,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create document record
+      console.log("Creating document record in database...");
       const documentData = {
         caseId: req.params.id,
         fileName: fileName || `document_${Date.now()}`,
@@ -695,9 +726,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isProcessed: isProcessed,
         uploadedBy: userId,
       };
+      console.log("Document data prepared:", JSON.stringify({ ...documentData, extractedText: `[${extractedText.length} chars]` }, null, 2));
 
       const validatedDocumentData = insertDocumentSchema.parse(documentData);
+      console.log("Document data validated");
+      
       const document = await storage.createDocument(validatedDocumentData);
+      console.log("Document created successfully, ID:", document.id);
 
       res.json(document);
     } catch (error) {
