@@ -181,10 +181,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/objects/upload", isAuthenticated, async (req, res) => {
     console.log("=== POST /api/objects/upload DEBUG ===");
     console.log("Request body:", req.body);
+    console.log("Request headers - host:", req.headers.host);
+    console.log("Request protocol:", req.protocol);
     
     // Generate unique file ID for this upload
     const fileId = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
-    const uploadURL = `/api/documents/upload-local/${fileId}`;
+    
+    // Construct absolute URL - Uppy's AwsS3 plugin requires absolute URLs
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.headers.host || 'localhost:5000';
+    const uploadURL = `${protocol}://${host}/api/documents/upload-local/${fileId}`;
     
     console.log("Generated upload URL:", uploadURL);
     res.json({ uploadURL });
