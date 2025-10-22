@@ -1,0 +1,91 @@
+index-DCGQbY3T.js:317 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-DCGQbY3T.js:317
+w2 @ index-DCGQbY3T.js:40
+vf @ index-DCGQbY3T.js:40
+une @ index-DCGQbY3T.js:40
+Hl @ index-DCGQbY3T.js:40
+h5 @ index-DCGQbY3T.js:40
+Al @ index-DCGQbY3T.js:38
+(anonymous) @ index-DCGQbY3T.js:40
+index-DCGQbY3T.js:48  GET https://pro.mediator.life/api/cases/004cfcbd-5712-4222-934d-aba5134f43ee 404 (Not Found)
+(anonymous) @ index-DCGQbY3T.js:48
+a @ index-DCGQbY3T.js:48
+v @ index-DCGQbY3T.js:48
+start @ index-DCGQbY3T.js:48
+fetch @ index-DCGQbY3T.js:48
+(anonymous) @ index-DCGQbY3T.js:48
+(anonymous) @ index-DCGQbY3T.js:48
+batch @ index-DCGQbY3T.js:48
+refetchQueries @ index-DCGQbY3T.js:48
+(anonymous) @ index-DCGQbY3T.js:48
+batch @ index-DCGQbY3T.js:48
+invalidateQueries @ index-DCGQbY3T.js:48
+onSuccess @ index-DCGQbY3T.js:619
+execute @ index-DCGQbY3T.js:48
+await in execute
+mutate @ index-DCGQbY3T.js:48
+(anonymous) @ index-DCGQbY3T.js:48
+onClick @ index-DCGQbY3T.js:619
+(anonymous) @ index-DCGQbY3T.js:48
+kte @ index-DCGQbY3T.js:37
+Nte @ index-DCGQbY3T.js:37
+Pte @ index-DCGQbY3T.js:37
+M4 @ index-DCGQbY3T.js:37
+mL @ index-DCGQbY3T.js:37
+(anonymous) @ index-DCGQbY3T.js:37
+MC @ index-DCGQbY3T.js:40
+j7 @ index-DCGQbY3T.js:37
+Ow @ index-DCGQbY3T.js:37
+dC @ index-DCGQbY3T.js:37
+Xte @ index-DCGQbY3T.js:37
+index-DCGQbY3T.js:615 [DocumentManager] Getting upload parameters...
+index-DCGQbY3T.js:615 [DocumentManager] Upload parameters received: {uploadURL: 'http://pro.mediator.life/api/documents/upload-local/1761106107152-yr8dovx2wvj'}
+index-DCGQbY3T.js:348 Mixed Content: The page at 'https://pro.mediator.life/cases' was loaded over HTTPS, but requested an insecure XMLHttpRequest endpoint 'http://pro.mediator.life/api/documents/upload-local/1761106107152-yr8dovx2wvj'. This request has been blocked; the content must be served over HTTPS.
+(anonymous) @ index-DCGQbY3T.js:348
+uploadPartBytes @ index-DCGQbY3T.js:348
+(anonymous) @ index-DCGQbY3T.js:323
+UE @ index-DCGQbY3T.js:323
+run @ index-DCGQbY3T.js:323
+(anonymous) @ index-DCGQbY3T.js:323
+(anonymous) @ index-DCGQbY3T.js:323
+iS @ index-DCGQbY3T.js:348
+await in iS
+uploadFile @ index-DCGQbY3T.js:348
+DH @ index-DCGQbY3T.js:348
+start @ index-DCGQbY3T.js:348
+(anonymous) @ index-DCGQbY3T.js:348
+CH @ index-DCGQbY3T.js:348
+(anonymous) @ index-DCGQbY3T.js:348
+(anonymous) @ index-DCGQbY3T.js:348
+c0 @ index-DCGQbY3T.js:337
+await in c0
+(anonymous) @ index-DCGQbY3T.js:337
+Promise.then
+upload @ index-DCGQbY3T.js:337
+(anonymous) @ index-DCGQbY3T.js:346
+(anonymous) @ index-DCGQbY3T.js:332
+index-DCGQbY3T.js:332 [Uppy] [15:08:27] Unknown error
+error @ index-DCGQbY3T.js:332
+log @ index-DCGQbY3T.js:337
+(anonymous) @ index-DCGQbY3T.js:337
+i @ index-DCGQbY3T.js:332
+Bhe.t.emit @ index-DCGQbY3T.js:332
+emit @ index-DCGQbY3T.js:332
+s @ index-DCGQbY3T.js:348
+(anonymous) @ index-DCGQbY3T.js:348
+Promise.then
+DH @ index-DCGQbY3T.js:348
+start @ index-DCGQbY3T.js:348
+(anonymous) @ index-DCGQbY3T.js:348
+CH @ index-DCGQbY3T.js:348
+(anonymous) @ index-DCGQbY3T.js:348
+(anonymous) @ index-DCGQbY3T.js:348
+c0 @ index-DCGQbY3T.js:337
+await in c0
+(anonymous) @ index-DCGQbY3T.js:337
+Promise.then
+upload @ index-DCGQbY3T.js:337
+(anonymous) @ index-DCGQbY3T.js:346
+(anonymous) @ index-DCGQbY3T.js:332
+index-DCGQbY3T.js:615 [DocumentManager] Upload complete callback triggered
+index-DCGQbY3T.js:615 [DocumentManager] Result: {successful: Array(0), failed: Array(1), uploadID: 'CoVzRHSy5AdBO6M5_SH26'}
