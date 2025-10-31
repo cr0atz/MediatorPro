@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import type { Case, Party, EmailTemplate, Document } from "@shared/schema";
 
@@ -50,6 +50,8 @@ export default function EmailModal({ isOpen, onClose, caseId }: EmailModalProps)
         title: "Success",
         description: "Email sent successfully",
       });
+      // Invalidate communications query to refresh the log
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId, "communications"] });
       onClose();
       resetForm();
     },

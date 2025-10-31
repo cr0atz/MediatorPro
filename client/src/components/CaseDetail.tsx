@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import AIChat from "./AIChat";
@@ -35,7 +36,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Case, Party, Document } from "@shared/schema";
 import { 
   AlertTriangle, ArrowLeft, Mail, Video, Trash2, Info, Users, Folder, 
-  StickyNote, Bot, Circle, Download, FileText, Plus, Phone, Edit2, CalendarDays
+  StickyNote, Bot, Circle, Download, FileText, Plus, Phone, Edit2, CalendarDays,
+  MessageSquare, CalendarPlus, Edit
 } from "lucide-react";
 
 interface CaseDetailProps {
@@ -52,9 +54,14 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [isCreatingZoomMeeting, setIsCreatingZoomMeeting] = useState(false);
   const [isSyncingCalendar, setIsSyncingCalendar] = useState(false);
+  const [editingDisputeBackground, setEditingDisputeBackground] = useState(false);
+  const [editingIssues, setEditingIssues] = useState(false);
+  const [disputeBackgroundText, setDisputeBackgroundText] = useState('');
+  const [issuesText, setIssuesText] = useState('');
   const [partyForm, setPartyForm] = useState({
     entityName: '',
     partyType: 'applicant',
+    position: '',
     primaryContactName: '',
     primaryContactRole: '',
     primaryContactEmail: '',
@@ -64,6 +71,8 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
     legalRepEmail: '',
     legalRepPhone: '',
   });
+  const [editingParty, setEditingParty] = useState<any>(null);
+  const [showEditPartyDialog, setShowEditPartyDialog] = useState(false);
 
   const addPartyMutation = useMutation({
     mutationFn: async (partyData: any) => {
@@ -84,6 +93,7 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
       setPartyForm({
         entityName: '',
         partyType: 'applicant',
+        position: '',
         primaryContactName: '',
         primaryContactRole: '',
         primaryContactEmail: '',
@@ -109,6 +119,44 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
       toast({
         title: "Error",
         description: error.message || "Failed to add party",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updatePartyMutation = useMutation({
+    mutationFn: async ({ partyId, partyData }: { partyId: string; partyData: any }) => {
+      const response = await apiRequest('PATCH', `/api/cases/${caseId}/parties/${partyId}`, partyData);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update party');
+      }
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId] });
+      toast({
+        title: "Success",
+        description: "Party updated successfully",
+      });
+      setShowEditPartyDialog(false);
+      setEditingParty(null);
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update party",
         variant: "destructive",
       });
     },
@@ -262,8 +310,48 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
     updateCaseMutation.mutate(updates);
   };
 
+  const handleSaveDisputeBackground = async () => {
+    try {
+      await updateCaseMutation.mutateAsync({
+        disputeBackground: disputeBackgroundText.trim() || null
+      });
+      setEditingDisputeBackground(false);
+      setDisputeBackgroundText('');
+    } catch (error) {
+      // Error handling is done in the mutation
+    }
+  };
+
+  const handleSaveIssues = async () => {
+    try {
+      const issues = issuesText
+        .split('\n')
+        .map(issue => issue.trim())
+        .filter(issue => issue.length > 0);
+      
+      await updateCaseMutation.mutateAsync({
+        issuesForDiscussion: issues.length > 0 ? issues : []
+      });
+      setEditingIssues(false);
+      setIssuesText('');
+    } catch (error) {
+      // Error handling is done in the mutation
+    }
+  };
+
   const { data: caseData, isLoading, error } = useQuery({
     queryKey: ["/api/cases", caseId],
+  });
+
+  const { data: communications = [] } = useQuery({
+    queryKey: ["/api/cases", caseId, "communications"],
+    queryFn: async () => {
+      const res = await fetch(`/api/cases/${caseId}/communications`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch communications");
+      return res.json();
+    },
   });
 
   if (error) {
@@ -357,9 +445,22 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                 {case_.status}
               </Badge>
             </div>
-            <p className="text-primary-foreground/90" data-testid="text-case-title">
-              {case_.disputeBackground || 'Mediation Case'}
-            </p>
+            <div className="text-primary-foreground/90 text-sm" data-testid="text-case-parties">
+              {applicants.length > 0 && (
+                <span>
+                  <strong>Applicant{applicants.length > 1 ? 's' : ''}:</strong> {applicants.map(p => p.entityName).join(', ')}
+                </span>
+              )}
+              {applicants.length > 0 && respondents.length > 0 && <span className="mx-2">|</span>}
+              {respondents.length > 0 && (
+                <span>
+                  <strong>Respondent{respondents.length > 1 ? 's' : ''}:</strong> {respondents.map(p => p.entityName).join(', ')}
+                </span>
+              )}
+              {applicants.length === 0 && respondents.length === 0 && (
+                <span className="text-primary-foreground/70">No parties added yet</span>
+              )}
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <Button
@@ -451,6 +552,22 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                 <Bot className="w-4 h-4" />
                 <span>AI Analysis</span>
               </TabsTrigger>
+              <TabsTrigger
+                value="communications"
+                className="flex items-center space-x-2"
+                data-testid="tab-communications"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Communications</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="meetings"
+                className="flex items-center space-x-2"
+                data-testid="tab-meetings"
+              >
+                <CalendarPlus className="w-4 h-4" />
+                <span>Meetings</span>
+              </TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -503,32 +620,125 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                 </CardContent>
               </Card>
 
-              {case_.disputeBackground && (
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-4">Dispute Background</h3>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-foreground">Dispute Background</h3>
+                    {!editingDisputeBackground && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingDisputeBackground(true);
+                          setDisputeBackgroundText(case_.disputeBackground || '');
+                        }}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                  {editingDisputeBackground ? (
+                    <div className="space-y-3">
+                      <Textarea
+                        value={disputeBackgroundText}
+                        onChange={(e) => setDisputeBackgroundText(e.target.value)}
+                        placeholder="Enter dispute background..."
+                        rows={4}
+                        className="w-full"
+                      />
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleSaveDisputeBackground()}
+                          disabled={updateCaseMutation.isPending}
+                        >
+                          {updateCaseMutation.isPending ? 'Saving...' : 'Save'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingDisputeBackground(false);
+                            setDisputeBackgroundText('');
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
                     <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-dispute-background">
-                      {case_.disputeBackground}
+                      {case_.disputeBackground || 'No dispute background provided. Click the edit button to add one.'}
                     </p>
-                  </CardContent>
-                </Card>
-              )}
+                  )}
+                </CardContent>
+              </Card>
 
-              {case_.issuesForDiscussion && case_.issuesForDiscussion.length > 0 && (
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-4">Issues for Discussion</h3>
-                    <ul className="space-y-2" data-testid="list-issues">
-                      {case_.issuesForDiscussion.map((issue, index) => (
-                        <li key={index} className="flex items-start space-x-3">
-                          <Circle className="text-primary w-2 h-2 mt-1" />
-                          <span className="text-sm text-foreground">{issue}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-foreground">Issues for Discussion</h3>
+                    {!editingIssues && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingIssues(true);
+                          setIssuesText((case_.issuesForDiscussion || []).join('\n'));
+                        }}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                  {editingIssues ? (
+                    <div className="space-y-3">
+                      <Textarea
+                        value={issuesText}
+                        onChange={(e) => setIssuesText(e.target.value)}
+                        placeholder="Enter each issue on a new line..."
+                        rows={6}
+                        className="w-full"
+                      />
+                      <p className="text-xs text-muted-foreground">Enter each issue on a separate line</p>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleSaveIssues()}
+                          disabled={updateCaseMutation.isPending}
+                        >
+                          {updateCaseMutation.isPending ? 'Saving...' : 'Save'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingIssues(false);
+                            setIssuesText('');
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      {case_.issuesForDiscussion && case_.issuesForDiscussion.length > 0 ? (
+                        <ul className="space-y-2" data-testid="list-issues">
+                          {case_.issuesForDiscussion.map((issue, index) => (
+                            <li key={index} className="flex items-start space-x-3">
+                              <Circle className="text-primary w-2 h-2 mt-1" />
+                              <span className="text-sm text-foreground">{issue}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No issues for discussion added. Click the edit button to add some.</p>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
 
             {/* Sidebar */}
@@ -668,11 +878,40 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                   <Card key={applicant.id || index}>
                     <CardContent className="p-6">
                       <div className="space-y-4">
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Entity Name</p>
-                          <p className="text-sm font-semibold text-foreground" data-testid={`text-applicant-name-${applicant.id}`}>
-                            {applicant.entityName}
-                          </p>
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Entity Name</p>
+                            <p className="text-sm font-semibold text-foreground" data-testid={`text-applicant-name-${applicant.id}`}>
+                              {applicant.entityName}
+                            </p>
+                            {applicant.position && (
+                              <Badge variant="secondary" className="mt-2">{applicant.position}</Badge>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingParty(applicant);
+                              setPartyForm({
+                                entityName: applicant.entityName || '',
+                                partyType: applicant.partyType || 'applicant',
+                                position: applicant.position || '',
+                                primaryContactName: applicant.primaryContactName || '',
+                                primaryContactRole: applicant.primaryContactRole || '',
+                                primaryContactEmail: applicant.primaryContactEmail || '',
+                                primaryContactPhone: applicant.primaryContactPhone || '',
+                                legalRepName: applicant.legalRepName || '',
+                                legalRepFirm: applicant.legalRepFirm || '',
+                                legalRepEmail: applicant.legalRepEmail || '',
+                                legalRepPhone: applicant.legalRepPhone || '',
+                              });
+                              setShowEditPartyDialog(true);
+                            }}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
                         </div>
                         {applicant.primaryContactName && (
                           <div>
@@ -744,11 +983,40 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                   <Card key={respondent.id || index}>
                     <CardContent className="p-6">
                       <div className="space-y-4">
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Entity Name</p>
-                          <p className="text-sm font-semibold text-foreground" data-testid={`text-respondent-name-${respondent.id}`}>
-                            {respondent.entityName}
-                          </p>
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Entity Name</p>
+                            <p className="text-sm font-semibold text-foreground" data-testid={`text-respondent-name-${respondent.id}`}>
+                              {respondent.entityName}
+                            </p>
+                            {respondent.position && (
+                              <Badge variant="secondary" className="mt-2">{respondent.position}</Badge>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingParty(respondent);
+                              setPartyForm({
+                                entityName: respondent.entityName || '',
+                                partyType: respondent.partyType || 'respondent',
+                                position: respondent.position || '',
+                                primaryContactName: respondent.primaryContactName || '',
+                                primaryContactRole: respondent.primaryContactRole || '',
+                                primaryContactEmail: respondent.primaryContactEmail || '',
+                                primaryContactPhone: respondent.primaryContactPhone || '',
+                                legalRepName: respondent.legalRepName || '',
+                                legalRepFirm: respondent.legalRepFirm || '',
+                                legalRepEmail: respondent.legalRepEmail || '',
+                                legalRepPhone: respondent.legalRepPhone || '',
+                              });
+                              setShowEditPartyDialog(true);
+                            }}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
                         </div>
                         {respondent.primaryContactName && (
                           <div>
@@ -831,6 +1099,208 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
         <TabsContent value="ai" className="p-6">
           <AIChat caseId={caseId} />
         </TabsContent>
+
+        {/* Tab Content - Communications */}
+        <TabsContent value="communications" className="p-6">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Communications Log</h2>
+                <p className="text-muted-foreground">Track all communications and activities for this case</p>
+              </div>
+            </div>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-foreground mb-4">Activity Timeline</h3>
+                  
+                  {/* Communications timeline */}
+                  <div className="space-y-4">
+                    {communications.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>No communications logged yet</p>
+                        <p className="text-sm mt-2">Communications will appear here when you:</p>
+                        <ul className="text-sm mt-2 space-y-1">
+                          <li>• Send emails to parties</li>
+                          <li>• Create or join Zoom meetings</li>
+                          <li>• Add calendar entries</li>
+                          <li>• Schedule phone calls</li>
+                        </ul>
+                      </div>
+                    ) : (
+                      communications.map((comm: any) => (
+                        <div key={comm.id} className="border-l-4 border-primary/30 pl-4 py-3 hover:bg-muted/50 rounded-r">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={comm.type === 'email' ? 'default' : 'secondary'}>
+                                {comm.type.toUpperCase()}
+                              </Badge>
+                              <Badge variant={comm.direction === 'outgoing' ? 'outline' : 'default'}>
+                                {comm.direction === 'outgoing' ? '→ Sent' : '← Received'}
+                              </Badge>
+                            </div>
+                            <span className="text-sm text-muted-foreground">
+                              {new Date(comm.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          {comm.subject && (
+                            <h4 className="font-semibold text-foreground mb-1">{comm.subject}</h4>
+                          )}
+                          <div className="text-sm text-muted-foreground mb-2">
+                            <strong>To:</strong> {JSON.parse(comm.recipients || '[]').join(', ')}
+                          </div>
+                          {comm.content && (
+                            <p className="text-sm text-foreground line-clamp-3 whitespace-pre-wrap">
+                              {comm.content}
+                            </p>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Tab Content - Meetings */}
+        <TabsContent value="meetings" className="p-6">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Meetings & Events</h2>
+                <p className="text-muted-foreground">Manage Zoom meetings, phone calls, and calendar events</p>
+              </div>
+              <Button className="flex items-center space-x-2">
+                <Plus className="w-4 h-4" />
+                <span>Schedule Event</span>
+              </Button>
+            </div>
+
+            {/* Zoom Meeting Section */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground flex items-center">
+                    <Video className="w-5 h-5 mr-2 text-primary" />
+                    Zoom Meetings
+                  </h3>
+                  {case_.zoomMeetingLink ? (
+                    <Button 
+                      onClick={handleJoinZoomMeeting}
+                      className="flex items-center space-x-2"
+                    >
+                      <Video className="w-4 h-4" />
+                      <span>Join Current Meeting</span>
+                    </Button>
+                  ) : (
+                    <Button 
+                      onClick={handleCreateZoomMeeting}
+                      disabled={createZoomMeetingMutation.isPending}
+                      className="flex items-center space-x-2"
+                    >
+                      <Video className="w-4 h-4" />
+                      <span>{createZoomMeetingMutation.isPending ? 'Creating...' : 'Create Zoom Meeting'}</span>
+                    </Button>
+                  )}
+                </div>
+                
+                {case_.zoomMeetingLink ? (
+                  <div className="bg-muted/30 rounded-lg p-4">
+                    <p className="text-sm text-muted-foreground mb-2">Current Zoom Meeting</p>
+                    <div className="flex items-center justify-between">
+                      <code className="text-sm bg-background px-3 py-1 rounded">{case_.zoomMeetingLink}</code>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(case_.zoomMeetingLink || '');
+                          toast({ title: "Copied", description: "Meeting link copied to clipboard" });
+                        }}
+                      >
+                        Copy Link
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Video className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No Zoom meeting created yet</p>
+                    <p className="text-sm mt-2">Create a Zoom meeting to enable video conferencing for this case</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Calendar Events Section */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground flex items-center">
+                    <CalendarDays className="w-5 h-5 mr-2 text-primary" />
+                    Calendar Events
+                  </h3>
+                  <Button 
+                    onClick={handleSyncToCalendar}
+                    disabled={isSyncingCalendar}
+                    className="flex items-center space-x-2"
+                  >
+                    <CalendarDays className="w-4 h-4" />
+                    <span>{isSyncingCalendar ? 'Syncing...' : 'Sync to Calendar'}</span>
+                  </Button>
+                </div>
+                
+                <div className="space-y-3">
+                  {case_.calendarEventId ? (
+                    <div className="bg-muted/30 rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Mediation Session</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {case_.mediationDate ? new Date(case_.mediationDate).toLocaleString() : 'Date not set'}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">Synced to Google Calendar</p>
+                        </div>
+                        <Badge variant="outline" className="text-xs">Active</Badge>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CalendarDays className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No calendar events synced</p>
+                      <p className="text-sm mt-2">Sync this case to your Google Calendar to manage events</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Phone Calls Section */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground flex items-center">
+                    <Phone className="w-5 h-5 mr-2 text-primary" />
+                    Scheduled Phone Calls
+                  </h3>
+                  <Button variant="outline" className="flex items-center space-x-2">
+                    <Plus className="w-4 h-4" />
+                    <span>Schedule Call</span>
+                  </Button>
+                </div>
+                
+                <div className="text-center py-8 text-muted-foreground">
+                  <Phone className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No phone calls scheduled</p>
+                  <p className="text-sm mt-2">Schedule phone calls with parties to keep track of important conversations</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
       </Tabs>
 
       {showEmailModal && (
@@ -893,6 +1363,24 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                   <SelectContent>
                     <SelectItem value="applicant">Applicant</SelectItem>
                     <SelectItem value="respondent">Respondent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2">
+                <Label htmlFor="position">Position</Label>
+                <Select value={partyForm.position} onValueChange={(value) => setPartyForm({...partyForm, position: value})}>
+                  <SelectTrigger data-testid="select-position">
+                    <SelectValue placeholder="Select position..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Lawyer">Lawyer</SelectItem>
+                    <SelectItem value="Tenant">Tenant</SelectItem>
+                    <SelectItem value="Landlord">Landlord</SelectItem>
+                    <SelectItem value="Guarantor">Guarantor</SelectItem>
+                    <SelectItem value="Agent">Agent</SelectItem>
+                    <SelectItem value="Expert Witness">Expert Witness</SelectItem>
+                    <SelectItem value="Support Person">Support Person</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -992,6 +1480,157 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
               data-testid="button-submit-add-party"
             >
               {addPartyMutation.isPending ? "Adding..." : "Add Party"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Party Dialog */}
+      <Dialog open={showEditPartyDialog} onOpenChange={setShowEditPartyDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Party</DialogTitle>
+            <DialogDescription>
+              Update party information for this case.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <Label htmlFor="edit-entityName">Entity Name *</Label>
+                <Input
+                  id="edit-entityName"
+                  value={partyForm.entityName}
+                  onChange={(e) => setPartyForm({...partyForm, entityName: e.target.value})}
+                  placeholder="Company or individual name"
+                />
+              </div>
+              <div className="col-span-2">
+                <Label htmlFor="edit-partyType">Party Type *</Label>
+                <Select value={partyForm.partyType} onValueChange={(value) => setPartyForm({...partyForm, partyType: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="applicant">Applicant</SelectItem>
+                    <SelectItem value="respondent">Respondent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2">
+                <Label htmlFor="edit-position">Position</Label>
+                <Select value={partyForm.position} onValueChange={(value) => setPartyForm({...partyForm, position: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select position..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Lawyer">Lawyer</SelectItem>
+                    <SelectItem value="Tenant">Tenant</SelectItem>
+                    <SelectItem value="Landlord">Landlord</SelectItem>
+                    <SelectItem value="Guarantor">Guarantor</SelectItem>
+                    <SelectItem value="Agent">Agent</SelectItem>
+                    <SelectItem value="Expert Witness">Expert Witness</SelectItem>
+                    <SelectItem value="Support Person">Support Person</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Primary Contact</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-primaryContactName">Contact Name</Label>
+                  <Input
+                    id="edit-primaryContactName"
+                    value={partyForm.primaryContactName}
+                    onChange={(e) => setPartyForm({...partyForm, primaryContactName: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-primaryContactRole">Role/Title</Label>
+                  <Input
+                    id="edit-primaryContactRole"
+                    value={partyForm.primaryContactRole}
+                    onChange={(e) => setPartyForm({...partyForm, primaryContactRole: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-primaryContactEmail">Email</Label>
+                  <Input
+                    id="edit-primaryContactEmail"
+                    type="email"
+                    value={partyForm.primaryContactEmail}
+                    onChange={(e) => setPartyForm({...partyForm, primaryContactEmail: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-primaryContactPhone">Phone</Label>
+                  <Input
+                    id="edit-primaryContactPhone"
+                    value={partyForm.primaryContactPhone}
+                    onChange={(e) => setPartyForm({...partyForm, primaryContactPhone: e.target.value})}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Legal Representative</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-legalRepName">Representative Name</Label>
+                  <Input
+                    id="edit-legalRepName"
+                    value={partyForm.legalRepName}
+                    onChange={(e) => setPartyForm({...partyForm, legalRepName: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-legalRepFirm">Law Firm</Label>
+                  <Input
+                    id="edit-legalRepFirm"
+                    value={partyForm.legalRepFirm}
+                    onChange={(e) => setPartyForm({...partyForm, legalRepFirm: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-legalRepEmail">Email</Label>
+                  <Input
+                    id="edit-legalRepEmail"
+                    type="email"
+                    value={partyForm.legalRepEmail}
+                    onChange={(e) => setPartyForm({...partyForm, legalRepEmail: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-legalRepPhone">Phone</Label>
+                  <Input
+                    id="edit-legalRepPhone"
+                    value={partyForm.legalRepPhone}
+                    onChange={(e) => setPartyForm({...partyForm, legalRepPhone: e.target.value})}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEditPartyDialog(false);
+                setEditingParty(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => editingParty && updatePartyMutation.mutate({ 
+                partyId: editingParty.id, 
+                partyData: partyForm 
+              })}
+              disabled={!partyForm.entityName || updatePartyMutation.isPending}
+            >
+              {updatePartyMutation.isPending ? "Updating..." : "Update Party"}
             </Button>
           </DialogFooter>
         </DialogContent>

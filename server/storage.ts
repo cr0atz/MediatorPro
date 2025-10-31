@@ -49,6 +49,7 @@ export interface IStorage {
   // Party operations
   createParty(partyData: InsertParty): Promise<Party>;
   getPartiesByCase(caseId: string): Promise<Party[]>;
+  updateParty(id: string, updates: Partial<InsertParty>): Promise<Party>;
   
   // Document operations
   createDocument(documentData: InsertDocument): Promise<Document>;
@@ -163,6 +164,11 @@ export class DatabaseStorage implements IStorage {
 
   async getPartiesByCase(caseId: string): Promise<Party[]> {
     return await db.select().from(parties).where(eq(parties.caseId, caseId));
+  }
+
+  async updateParty(id: string, updates: Partial<InsertParty>): Promise<Party> {
+    const [party] = await db.update(parties).set(updates).where(eq(parties.id, id)).returning();
+    return party;
   }
 
   // Document operations

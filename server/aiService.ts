@@ -75,6 +75,12 @@ Please extract and return the following information in JSON format:
   - legalRepEmail: Legal rep email
   - legalRepPhone: Legal rep phone
 
+CRITICAL DATE FORMAT: 
+- Australian/International format is used: DD/MM/YYYY (day first, then month)
+- Example: "05/11/2025" = 5th November 2025 (NOT May 11th)
+- Example: "24/10/2025" = 24th October 2025 (NOT October 24th)
+- Always interpret dates as DD/MM/YYYY unless explicitly stated otherwise
+
 Return only valid JSON. If information is not found, omit the field or use null.`;
 
       const isImageType = mimeType.startsWith('image/');
@@ -236,13 +242,16 @@ Return JSON with these fields (omit if not found):
 - timeZone: Time zone information (e.g., "Sydney, Melbourne Time", "AEDT", "AEST")
 
 CRITICAL for eventDateTime: 
-1. Find the timezone mentioned in the document (e.g., "Sydney, Melbourne Time" = AEDT/AEST)
-2. Convert to ISO format WITH timezone offset included
-3. AEDT (Australian Eastern Daylight Time) = +11:00
-4. AEST (Australian Eastern Standard Time) = +10:00
-5. Example: "12:30pm - Monday, 20 October 2025 (Sydney, Melbourne Time)" becomes "2025-10-20T12:30:00+11:00" in October (AEDT)
-6. DO NOT convert the time itself - preserve the exact time shown (12:30pm stays 12:30)
-7. Always include the timezone offset in the ISO string
+1. DATE FORMAT: Australian/International format is DD/MM/YYYY (day first, then month)
+   - Example: "05/11/2025" = 5th November 2025 (NOT May 11th)
+   - Example: "24/10/2025" = 24th October 2025 (NOT October 24th)
+2. Find the timezone mentioned in the document (e.g., "Sydney, Melbourne Time" = AEDT/AEST)
+3. Convert to ISO format WITH timezone offset included
+4. AEDT (Australian Eastern Daylight Time) = +11:00
+5. AEST (Australian Eastern Standard Time) = +10:00
+6. Example: "12:30pm - Monday, 20 October 2025 (Sydney, Melbourne Time)" becomes "2025-10-20T12:30:00+11:00" in October (AEDT)
+7. DO NOT convert the time itself - preserve the exact time shown (12:30pm stays 12:30)
+8. Always include the timezone offset in the ISO string
 
 If you cannot confidently parse the date, still return the raw text in eventDateTimeRaw.
 

@@ -8,10 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { SmtpSettings, EmailTemplate, InsertSmtpSettings, InsertEmailTemplate, ZoomSettings, CalendarSettings, InsertZoomSettings, InsertCalendarSettings, User } from "@shared/schema";
-import { Server, Mail, Plus, Trash2, Save, TestTube, Video, Calendar, Link2, CheckCircle, XCircle, UserCircle } from "lucide-react";
+import { Server, Mail, Plus, Trash2, Save, TestTube, Video, Calendar, Link2, CheckCircle, XCircle, UserCircle, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertSmtpSettingsSchema, insertEmailTemplateSchema, insertZoomSettingsSchema, insertCalendarSettingsSchema } from "@shared/schema";
@@ -80,6 +81,7 @@ export default function Settings() {
       password: '',
       fromEmail: '',
       fromName: '',
+      useGmail: false,
     },
   });
 
@@ -115,6 +117,12 @@ export default function Settings() {
       clientSecret: '',
     },
   });
+
+  // Debug: Log when form is created
+  console.log('[Calendar] Form initialized');
+  console.log('[Calendar] User ID:', (user as any)?.id);
+  console.log('[Calendar] Calendar settings:', calendarSettings);
+  console.log('[Calendar] Form state:', calendarForm.formState);
 
   // Profile form for mediator email
   const profileForm = useForm<{ mediatorEmail: string }>({
@@ -261,9 +269,13 @@ export default function Settings() {
   // Update Calendar settings mutation
   const calendarMutation = useMutation({
     mutationFn: async (data: InsertCalendarSettings) => {
-      return apiRequest('POST', '/api/calendar-settings', data);
+      console.log('[Calendar] Mutation function called with:', data);
+      const result = await apiRequest('POST', '/api/calendar-settings', data);
+      console.log('[Calendar] API request successful:', result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('[Calendar] Mutation onSuccess triggered with:', data);
       queryClient.invalidateQueries({ queryKey: ['/api/calendar-settings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/calendar/connection-status'] });
       toast({
@@ -271,10 +283,11 @@ export default function Settings() {
         description: "Your Google Calendar credentials have been updated successfully.",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('[Calendar] Mutation onError triggered:', error);
       toast({
         title: "Error",
-        description: "Failed to save Calendar settings. Please try again.",
+        description: error?.message || "Failed to save Calendar settings. Please try again.",
         variant: "destructive",
       });
     },
@@ -386,13 +399,26 @@ export default function Settings() {
   };
 
   const onCalendarSubmit = (data: InsertCalendarSettings) => {
+    console.log('[Calendar] Form submitted with data:', data);
+    console.log('[Calendar] Triggering mutation...');
     calendarMutation.mutate(data);
   };
 
   // Update form when SMTP settings are loaded
   useEffect(() => {
     if (smtpSettings && !smtpForm.formState.isDirty) {
-      smtpForm.reset(smtpSettings);
+      // Only reset with fields that match InsertSmtpSettings schema
+      smtpForm.reset({
+        userId: smtpSettings.userId,
+        host: smtpSettings.host,
+        port: smtpSettings.port,
+        secure: smtpSettings.secure,
+        username: smtpSettings.username,
+        password: smtpSettings.password,
+        fromEmail: smtpSettings.fromEmail,
+        fromName: smtpSettings.fromName,
+        useGmail: smtpSettings.useGmail || false,
+      });
     }
   }, [smtpSettings, smtpForm]);
 
@@ -404,7 +430,17 @@ export default function Settings() {
 
   useEffect(() => {
     if (calendarSettings && !calendarForm.formState.isDirty) {
-      calendarForm.reset(calendarSettings);
+      // Only reset with fields that match InsertCalendarSettings schema
+      calendarForm.reset({
+        userId: calendarSettings.userId,
+        clientId: calendarSettings.clientId,
+        clientSecret: calendarSettings.clientSecret,
+        accessToken: calendarSettings.accessToken,
+        refreshToken: calendarSettings.refreshToken,
+        scope: calendarSettings.scope,
+        expiryDate: calendarSettings.expiryDate,
+        email: calendarSettings.email,
+      });
     }
   }, [calendarSettings, calendarForm]);
 
@@ -640,6 +676,30 @@ export default function Settings() {
                         />
                       </div>
 
+                      <div className="pt-4 border-t">
+                        <FormField
+                          control={smtpForm.control}
+                          name="useGmail"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  data-testid="checkbox-use-gmail"
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel>Use Gmail API?</FormLabel>
+                                <FormDescription>
+                                  If checked, use Gmail API for sending emails (requires Google Calendar connection). Otherwise, use SMTP settings above.
+                                </FormDescription>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
                       <div className="space-y-4 pt-4 border-t">
                         <div className="flex items-center gap-4">
                           <Button 
@@ -791,7 +851,16 @@ export default function Settings() {
                   </div>
                 ) : (
                   <Form {...calendarForm}>
-                    <form onSubmit={calendarForm.handleSubmit(onCalendarSubmit)} className="space-y-6">
+                    <form
+                      onSubmit={(e) => {
+                        console.log('[Calendar] Form onSubmit event triggered');
+                        console.log('[Calendar] Form values:', calendarForm.getValues());
+                        console.log('[Calendar] Form errors:', calendarForm.formState.errors);
+                        console.log('[Calendar] Form isValid:', calendarForm.formState.isValid);
+                        calendarForm.handleSubmit(onCalendarSubmit)(e);
+                      }}
+                      className="space-y-6"
+                    >
                       <FormField
                         control={calendarForm.control}
                         name="clientId"
@@ -822,13 +891,28 @@ export default function Settings() {
                       />
                       <div className="space-y-4 pt-4 border-t">
                         <div className="flex items-center gap-4">
-                          <Button 
-                            type="submit" 
+                          <Button
+                            type="submit"
                             disabled={calendarMutation.isPending}
                             data-testid="button-save-calendar"
+                            className="transition-all"
+                            onClick={(e) => {
+                              console.log('[Calendar] Button clicked!');
+                              console.log('[Calendar] Button event:', e);
+                              console.log('[Calendar] Mutation isPending:', calendarMutation.isPending);
+                            }}
                           >
-                            <Save className="w-4 h-4 mr-2" />
-                            {calendarMutation.isPending ? 'Saving...' : 'Save Credentials'}
+                            {calendarMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Save className="w-4 h-4 mr-2" />
+                                Save Credentials
+                              </>
+                            )}
                           </Button>
                         </div>
                         

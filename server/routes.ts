@@ -2,12 +2,94 @@ import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import multer from 'multer';
+import { google } from 'googleapis';
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { LocalFileStorageService, ObjectNotFoundError } from "./localFileStorage";
 import { aiService } from "./aiService";
 import { emailService } from "./emailService";
 import { insertCaseSchema, insertPartySchema, insertDocumentSchema, insertCaseNoteSchema, insertAiAnalysisSchema, insertEmailTemplateSchema, insertSmtpSettingsSchema, insertZoomSettingsSchema, insertCalendarSettingsSchema } from "@shared/schema";
+
+// Helper function to parse ICS calendar files
+function parseIcsFile(icsContent: string): any {
+  const lines = icsContent.split('\n').map(line => line.trim());
+  const event: any = {};
+  
+  let inEvent = false;
+  
+  for (const line of lines) {
+    if (line === 'BEGIN:VEVENT') {
+      inEvent = true;
+      continue;
+    }
+    if (line === 'END:VEVENT') {
+      break;
+    }
+    
+    if (inEvent && line.includes(':')) {
+      const [key, ...valueParts] = line.split(':');
+      const value = valueParts.join(':');
+      
+      switch (key) {
+        case 'SUMMARY':
+          event.summary = value;
+          break;
+        case 'DESCRIPTION':
+          event.description = value.replace(/\\n/g, '\n');
+          break;
+        case 'DTSTART':
+          event.startDate = parseIcsDate(value);
+          break;
+        case 'DTEND':
+          event.endDate = parseIcsDate(value);
+          break;
+        case 'LOCATION':
+          event.location = value;
+          break;
+        case 'ORGANIZER':
+          event.organizer = value.replace(/^mailto:/, '');
+          break;
+        case 'ATTENDEE':
+          if (!event.attendees) event.attendees = [];
+          event.attendees.push(value.replace(/^mailto:/, ''));
+          break;
+      }
+    }
+  }
+  
+  // Convert to meeting data format
+  return {
+    caseNumber: event.summary ? `MED-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}` : undefined,
+    mediationType: event.location?.toLowerCase().includes('zoom') || event.location?.toLowerCase().includes('teams') ? 'Remote' : 'In-Person',
+    mediationDate: event.startDate,
+    premises: event.location,
+    disputeBackground: event.description,
+    summary: event.summary,
+    organizer: event.organizer,
+    attendees: event.attendees
+  };
+}
+
+// Helper function to parse ICS date format
+function parseIcsDate(dateString: string): Date | null {
+  if (!dateString) return null;
+  
+  // Remove timezone info for simplicity (YYYYMMDDTHHMMSSZ format)
+  const cleanDate = dateString.replace(/[TZ]/g, '').substring(0, 14);
+  
+  if (cleanDate.length >= 8) {
+    const year = parseInt(cleanDate.substring(0, 4));
+    const month = parseInt(cleanDate.substring(4, 6)) - 1; // Month is 0-indexed
+    const day = parseInt(cleanDate.substring(6, 8));
+    const hour = cleanDate.length >= 10 ? parseInt(cleanDate.substring(8, 10)) : 0;
+    const minute = cleanDate.length >= 12 ? parseInt(cleanDate.substring(10, 12)) : 0;
+    const second = cleanDate.length >= 14 ? parseInt(cleanDate.substring(12, 14)) : 0;
+    
+    return new Date(year, month, day, hour, minute, second);
+  }
+  
+  return null;
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -20,7 +102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       fileSize: 50 * 1024 * 1024, // 50MB limit
     },
     fileFilter: (req, file, cb) => {
-      // Allow PDF, DOC, DOCX, Excel, and image files
+      // Allow PDF, DOC, DOCX, Excel, image files, ICS calendar files, and email files
       const allowedMimes = [
         'application/pdf',
         'application/msword',
@@ -30,7 +112,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'image/png',
         'image/jpeg',
         'image/jpg',
-        'image/webp'
+        'image/webp',
+        'text/calendar',
+        'application/ics',
+        'message/rfc822',
+        'application/vnd.ms-outlook'
       ];
       cb(null, allowedMimes.includes(file.mimetype));
     }
@@ -190,17 +276,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const fileId = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
     
     // Construct absolute URL - Uppy's AwsS3 plugin requires absolute URLs
-    // Detect protocol: check x-forwarded-proto (from proxy), req.secure, or default to https for non-localhost
+    // Detect protocol: check x-forwarded-proto (from proxy), req.secure, or default to https for production domains
     const host = req.headers.host || 'localhost:5000';
-    let protocol = 'http';
+    let protocol = 'https'; // Default to HTTPS for production
     
     if (req.headers['x-forwarded-proto']) {
       protocol = req.headers['x-forwarded-proto'] as string;
     } else if (req.secure) {
       protocol = 'https';
-    } else if (!host.includes('localhost')) {
-      // If not localhost and no proxy headers, assume HTTPS for production
-      protocol = 'https';
+    } else if (host.includes('localhost') || host.includes('127.0.0.1')) {
+      // Only use HTTP for localhost development
+      protocol = 'http';
     }
     
     const uploadURL = `${protocol}://${host}/api/documents/upload-local/${fileId}`;
@@ -412,8 +498,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const file = req.file;
+      
+      console.log('Create-from-file request received');
+      console.log('File object:', file ? {
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size
+      } : 'No file object');
+      console.log('Request body keys:', Object.keys(req.body));
+      console.log('Request files:', req.files);
 
       if (!file) {
+        console.log('ERROR: No file uploaded - multer did not process any file');
         return res.status(400).json({ message: "No file uploaded" });
       }
 
@@ -430,15 +526,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId
       );
 
-      // Extract meeting/calendar data using AI (specifically for calendar invitations)
+      // Extract meeting/calendar data - handle .ics files specially
       let meetingData: any = {};
       let extractedText = '';
       
       try {
-        meetingData = await aiService.extractMeetingDataFromDocument(file.buffer, file.mimetype);
-        console.log("Meeting data extracted:", meetingData);
+        // Handle .ics calendar files
+        if (file.mimetype === 'text/calendar' || file.mimetype === 'application/ics' || file.originalname?.endsWith('.ics')) {
+          meetingData = await parseIcsFile(file.buffer.toString('utf8'));
+          console.log("ICS data extracted:", meetingData);
+        } else {
+          // Use AI for other file types
+          meetingData = await aiService.extractMeetingDataFromDocument(file.buffer, file.mimetype);
+          console.log("Meeting data extracted:", meetingData);
+        }
       } catch (error) {
-        console.error("AI extraction failed:", error);
+        console.error("Extraction failed:", error);
         // Return error instead of continuing with empty data
         return res.status(500).json({ 
           message: "Failed to extract meeting details from file. Please try a different file or create the case manually." 
@@ -618,6 +721,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating party:", error);
       res.status(500).json({ message: "Failed to create party" });
+    }
+  });
+
+  app.patch('/api/cases/:caseId/parties/:partyId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { partyId } = req.params;
+      const updates = req.body;
+
+      // Verify party exists
+      const existingParties = await storage.getPartiesByCase(req.params.caseId);
+      const party = existingParties.find((p: any) => p.id === partyId);
+      
+      if (!party) {
+        return res.status(404).json({ message: "Party not found" });
+      }
+
+      // Update party using storage method
+      const updatedParty = await storage.updateParty(partyId, updates);
+
+      res.json(updatedParty);
+    } catch (error) {
+      console.error("Error updating party:", error);
+      res.status(500).json({ message: "Failed to update party" });
     }
   });
 
@@ -945,14 +1071,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       const mediatorEmail = user?.mediatorEmail || undefined;
 
-      // Get Google Calendar settings for Gmail
-      const settings = await storage.getCalendarSettings(userId);
-      if (!settings || !settings.accessToken || !settings.refreshToken) {
-        return res.status(400).json({ message: "Google account not connected. Please connect to Google Calendar first." });
-      }
+      // Check user's preference for Gmail vs SMTP
+      const smtpSettings = await storage.getSmtpSettings(userId);
+      const useGmail = smtpSettings?.useGmail || false;
 
-      const { GmailService } = await import('./gmailService.js');
-      const gmailService = new GmailService(settings);
+      // Initialize appropriate email service based on user preference
+      let gmailService = null;
+      if (useGmail) {
+        // User wants Gmail - check if Calendar is connected
+        const calendarSettings = await storage.getCalendarSettings(userId);
+        if (!calendarSettings || !calendarSettings.accessToken || !calendarSettings.refreshToken) {
+          return res.status(400).json({ 
+            message: "Gmail API selected but Google Calendar not connected. Please connect Google Calendar or disable 'Use Gmail' in SMTP settings." 
+          });
+        }
+        const { GmailService } = await import('./gmailService.js');
+        gmailService = new GmailService(calendarSettings);
+      } else {
+        // User wants SMTP - verify settings exist
+        if (!smtpSettings) {
+          return res.status(400).json({ 
+            message: "No SMTP settings configured. Please configure SMTP settings in Settings." 
+          });
+        }
+      }
 
       let emailSubject = subject;
       let emailBody = message;
@@ -1048,24 +1190,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Convert email body to HTML (preserve line breaks)
       const htmlBody = emailBody.replace(/\n/g, '<br/>');
       
-      const messageIds = await gmailService.sendBulkEmail({
-        recipients: recipientEmails,
-        subject: emailSubject,
-        html: htmlBody,
-        text: emailBody,
-        cc: mediatorEmail,
-      });
+      // Send via Gmail API or SMTP
+      let emailSent = false;
+      
+      if (useGmail && gmailService) {
+        try {
+          const messageIds = await gmailService.sendBulkEmail({
+            recipients: recipientEmails,
+            subject: emailSubject,
+            html: htmlBody,
+            text: emailBody,
+            cc: mediatorEmail,
+          });
 
-      res.json({ 
-        message: "Email(s) sent successfully via Gmail API",
-        messageIds,
-        mediatorCc: mediatorEmail || 'Not configured'
-      });
+          // Log communication to database
+          await storage.db.insert(storage.schema.communications).values({
+            caseId,
+            userId,
+            type: 'email',
+            direction: 'outgoing',
+            recipients: JSON.stringify(recipientEmails),
+            subject: emailSubject,
+            content: emailBody,
+            metadata: JSON.stringify({ messageIds, method: 'gmail' }),
+          });
+
+          res.json({ 
+            message: "Email(s) sent successfully via Gmail API",
+            messageIds,
+            mediatorCc: mediatorEmail || 'Not configured'
+          });
+          emailSent = true;
+        } catch (gmailError: any) {
+          console.error("Gmail API failed, falling back to SMTP:", gmailError.message);
+          // Fall through to SMTP
+        }
+      }
+      
+      if (!emailSent) {
+        // Use SMTP (either as fallback or primary method)
+        const smtpSettings = await storage.getSmtpSettings(userId);
+        if (!smtpSettings) {
+          throw new Error("No SMTP settings configured");
+        }
+
+        // Import nodemailer dynamically
+        const nodemailer = await import('nodemailer');
+        
+        // Create transporter with user's SMTP settings
+        const transporter = nodemailer.default.createTransport({
+          host: smtpSettings.host,
+          port: smtpSettings.port,
+          secure: smtpSettings.port === 465,
+          auth: {
+            user: smtpSettings.username,
+            pass: smtpSettings.password,
+          },
+        });
+
+        // Send to each recipient
+        for (const recipientEmail of recipientEmails) {
+          await transporter.sendMail({
+            from: `"${smtpSettings.fromName}" <${smtpSettings.fromEmail}>`,
+            to: recipientEmail,
+            cc: mediatorEmail,
+            subject: emailSubject,
+            text: emailBody,
+            html: htmlBody,
+          });
+        }
+
+        // Log communication to database
+        await storage.db.insert(storage.schema.communications).values({
+          caseId,
+          userId,
+          type: 'email',
+          direction: 'outgoing',
+          recipients: JSON.stringify(recipientEmails),
+          subject: emailSubject,
+          content: emailBody,
+          metadata: JSON.stringify({ method: 'smtp', host: smtpSettings.host }),
+        });
+
+        res.json({ 
+          message: "Email(s) sent successfully via SMTP",
+          recipientCount: recipientEmails.length,
+          mediatorCc: mediatorEmail || 'Not configured'
+        });
+      }
     } catch (error: any) {
       console.error("Error sending email:", error);
       res.status(500).json({ 
         message: "Failed to send email",
         error: error.message
+      });
+    }
+  });
+
+  // Communications log routes
+  app.get('/api/cases/:id/communications', isAuthenticated, async (req: any, res) => {
+    try {
+      const caseId = req.params.id;
+      const communications = await storage.db
+        .select()
+        .from(storage.schema.communications)
+        .where(eq(storage.schema.communications.caseId, caseId))
+        .orderBy(desc(storage.schema.communications.createdAt));
+      
+      res.json(communications);
+    } catch (error: any) {
+      console.error("Error fetching communications:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch communications",
+        error: error.message 
       });
     }
   });
@@ -1283,6 +1520,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       
+      console.log('[DEBUG] Saving calendar settings for user:', userId);
+      console.log('[DEBUG] Request body:', JSON.stringify(req.body, null, 2));
+      
       const existingSettings = await storage.getCalendarSettings(userId);
       
       // Validate incoming data
@@ -1291,11 +1531,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
       });
       
+      console.log('[DEBUG] Parsed settings data:', JSON.stringify(settingsData, null, 2));
+      
       if (existingSettings) {
         const settings = await storage.updateCalendarSettings(userId, settingsData);
+        console.log('[DEBUG] Successfully updated calendar settings');
         res.json(settings);
       } else {
         const settings = await storage.createCalendarSettings(settingsData);
+        console.log('[DEBUG] Successfully created calendar settings');
         res.json(settings);
       }
     } catch (error) {
@@ -1403,13 +1647,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Exchange code for tokens
       const tokens = await calendarService.getTokensFromCode(code as string);
 
-      // Update settings with tokens
+      // Get user's email address from OAuth token info (skip Gmail API to avoid errors)
+      let userEmail: string | undefined;
+      try {
+        const oauth2Client = new google.auth.OAuth2();
+        oauth2Client.setCredentials({ access_token: tokens.accessToken });
+        const tokenInfo = await oauth2Client.getTokenInfo(tokens.accessToken);
+        userEmail = tokenInfo.email;
+        console.log('Got user email from token info:', userEmail);
+      } catch (emailError: any) {
+        console.error('Failed to get user email from token info:', emailError.message);
+        // Continue without email - Gmail will use 'me' which works
+      }
+
+      // Update settings with tokens and email
       await storage.updateCalendarSettings(userId, {
         ...settings,
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         scope: tokens.scope,
         expiryDate: tokens.expiryDate,
+        email: userEmail,
       });
 
       // Redirect to settings page with success
@@ -1476,7 +1734,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/gmail/test', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      console.log('[Gmail Test] User ID:', userId);
+
       const settings = await storage.getCalendarSettings(userId);
+      console.log('[Gmail Test] Calendar settings:', {
+        hasSettings: !!settings,
+        hasAccessToken: !!settings?.accessToken,
+        hasRefreshToken: !!settings?.refreshToken,
+        email: settings?.email,
+        scope: settings?.scope
+      });
 
       if (!settings || !settings.accessToken || !settings.refreshToken) {
         return res.status(400).json({ message: "Google account not connected. Please connect to Google Calendar first." });
@@ -1485,17 +1752,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user's mediator email for CC
       const user = await storage.getUser(userId);
       const mediatorEmail = user?.mediatorEmail || undefined;
+      console.log('[Gmail Test] Mediator email for CC:', mediatorEmail);
 
       const { GmailService } = await import('./gmailService.js');
+      console.log('[Gmail Test] Creating Gmail service...');
       const gmailService = new GmailService(settings);
 
-      // Send test email to danny@mediator.life
+      // Send test email
+      console.log('[Gmail Test] Sending test email...');
+
+      // Gmail API restriction: Cannot send email where From == To
+      // Use a different recipient for testing, CC the user
+      const testEmailTo = 'noreply@mediator.life'; // Safe test recipient
+      const ccEmail = settings.email; // User receives via CC
+
       const messageId = await gmailService.sendEmail({
-        to: 'danny@mediator.life',
+        to: testEmailTo,
         subject: 'Gmail API Test Email - Mediator Pro',
-        cc: mediatorEmail,
-        requestReadReceipt: true,
-        requestDeliveryReceipt: true,
+        cc: ccEmail,
+        // NOTE: Gmail API does not support read receipts via headers
+        // requestReadReceipt and requestDeliveryReceipt are ignored
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
             <h2 style="color: #2563eb;">Gmail API Test Successful!</h2>
@@ -1508,31 +1784,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ✓ No authentication warnings<br>
               ✓ Sent from your real Gmail account<br>
               ✓ Automatically authenticated<br>
-              ${mediatorEmail ? `✓ Mediator CC'd: ${mediatorEmail}` : ''}
+              ${ccEmail ? `✓ Mediator CC'd: ${ccEmail}` : '✓ Test email sent'}
             </p>
           </div>
         `,
       });
 
-      res.json({ 
+      console.log('[Gmail Test] Email sent successfully, messageId:', messageId);
+      res.json({
         message: "Test email sent successfully via Gmail API! Check your inbox.",
         messageId,
         mediatorCc: mediatorEmail || 'Not configured'
       });
     } catch (error: any) {
-      console.error("Error sending test email via Gmail:", error);
-      
+      console.error("========== Gmail Test Error ==========");
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+      console.error("Error code:", error.code);
+      console.error("Error status:", error.status);
+      console.error("Full error:", JSON.stringify(error, null, 2));
+      console.error("=====================================");
+
       // Check for insufficient scopes error
       if (error.message && error.message.includes('insufficient authentication scopes')) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           message: "Your Google connection doesn't have Gmail permissions. Please disconnect and reconnect to Google Calendar to grant Gmail access.",
           error: "Request had insufficient authentication scopes."
         });
       }
-      
-      res.status(500).json({ 
-        message: "Failed to send test email", 
-        error: error.message 
+
+      res.status(500).json({
+        message: "Failed to send test email",
+        error: error.message,
+        code: error.code,
+        status: error.status
       });
     }
   });

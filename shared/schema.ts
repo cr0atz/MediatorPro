@@ -63,6 +63,7 @@ export const parties = pgTable("parties", {
   caseId: varchar("case_id").notNull(),
   entityName: text("entity_name").notNull(),
   partyType: text("party_type").notNull(), // applicant, respondent
+  position: text("position"), // Lawyer, Tenant, Landlord, Guarantor, Agent, Expert Witness, Support Person
   primaryContactName: text("primary_contact_name"),
   primaryContactRole: text("primary_contact_role"),
   primaryContactEmail: text("primary_contact_email"),
@@ -130,6 +131,7 @@ export const smtpSettings = pgTable("smtp_settings", {
   password: text("password").notNull(),
   fromEmail: text("from_email").notNull(),
   fromName: text("from_name").notNull(),
+  useGmail: boolean("use_gmail").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -153,8 +155,22 @@ export const calendarSettings = pgTable("calendar_settings", {
   refreshToken: text("refresh_token"),
   scope: text("scope"),
   expiryDate: timestamp("expiry_date"),
+  email: text("email"), // User's Google email address
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const communications = pgTable("communications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  caseId: varchar("case_id").notNull().references(() => cases.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // email, zoom, calendar, phone
+  direction: varchar("direction", { length: 20 }).notNull(), // outgoing, incoming
+  recipients: text("recipients"), // JSON array of recipient emails/names
+  subject: text("subject"),
+  content: text("content"), // Email body or meeting notes
+  metadata: text("metadata"), // JSON for additional data (messageId, zoomLink, etc)
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Relations
@@ -163,6 +179,7 @@ export const casesRelations = relations(cases, ({ many, one }) => ({
   documents: many(documents),
   caseNotes: many(caseNotes),
   aiAnalyses: many(aiAnalyses),
+  communications: many(communications),
   mediator: one(users, {
     fields: [cases.mediatorId],
     references: [users.id],
@@ -205,6 +222,17 @@ export const aiAnalysesRelations = relations(aiAnalyses, ({ one }) => ({
   }),
   createdByUser: one(users, {
     fields: [aiAnalyses.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const communicationsRelations = relations(communications, ({ one }) => ({
+  case: one(cases, {
+    fields: [communications.caseId],
+    references: [cases.id],
+  }),
+  user: one(users, {
+    fields: [communications.userId],
     references: [users.id],
   }),
 }));
@@ -268,6 +296,11 @@ export const insertCalendarSettingsSchema = createInsertSchema(calendarSettings)
   updatedAt: true,
 });
 
+export const insertCommunicationSchema = createInsertSchema(communications).omit({
+  id: true,
+  createdAt: true,
+});
+
 // User profile update schema (for updating mediator email)
 export const updateUserProfileSchema = z.object({
   mediatorEmail: z.string().email().nullable().optional()
@@ -285,6 +318,8 @@ export type EmailTemplate = typeof emailTemplates.$inferSelect;
 export type SmtpSettings = typeof smtpSettings.$inferSelect;
 export type ZoomSettings = typeof zoomSettings.$inferSelect;
 export type CalendarSettings = typeof calendarSettings.$inferSelect;
+export type Communication = typeof communications.$inferSelect;
+export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
 export type InsertCase = z.infer<typeof insertCaseSchema>;
 export type InsertParty = z.infer<typeof insertPartySchema>;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
