@@ -5,17 +5,18 @@ import type { CalendarSettings } from '@shared/schema';
 export class GmailService {
   private oauth2Client: OAuth2Client;
   private gmail;
+  private userEmail: string;
 
   constructor(settings: CalendarSettings) {
     // Reuse the same OAuth setup as Calendar
     let redirectUri = 'http://localhost:5000/api/calendar/oauth/callback';
-    
+
     if (process.env.PRODUCTION_DOMAIN) {
       redirectUri = `https://${process.env.PRODUCTION_DOMAIN}/api/calendar/oauth/callback`;
     } else if (process.env.REPLIT_DEV_DOMAIN) {
       redirectUri = `https://${process.env.REPLIT_DEV_DOMAIN}/api/calendar/oauth/callback`;
     }
-    
+
     this.oauth2Client = new google.auth.OAuth2(
       settings.clientId,
       settings.clientSecret,
@@ -31,6 +32,9 @@ export class GmailService {
         expiry_date: settings.expiryDate ? new Date(settings.expiryDate).getTime() : undefined,
       });
     }
+
+    // Store user's email for use in email headers
+    this.userEmail = settings.email || 'me';
 
     this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
   }
@@ -48,7 +52,8 @@ export class GmailService {
   }): Promise<string> {
     try {
       // Create email in RFC 2822 format
-      const from = params.from || 'me';
+      // Use the user's actual email for headers (not 'me')
+      const from = params.from || this.userEmail;
       const messageParts = [
         `From: ${from}`,
         `To: ${params.to}`,
@@ -61,15 +66,10 @@ export class GmailService {
 
       messageParts.push(`Subject: ${params.subject}`);
 
-      // Add read receipt header if requested
-      if (params.requestReadReceipt) {
-        messageParts.push(`Disposition-Notification-To: ${from}`);
-      }
-
-      // Add delivery receipt header if requested
-      if (params.requestDeliveryReceipt) {
-        messageParts.push(`Return-Receipt-To: ${from}`);
-      }
+      // NOTE: Gmail API does not support read receipt headers
+      // (Disposition-Notification-To and Return-Receipt-To)
+      // These headers cause "Precondition check failed" error
+      // Read receipts must be requested through Gmail UI settings instead
 
       messageParts.push('MIME-Version: 1.0');
       messageParts.push('Content-Type: text/html; charset=utf-8');

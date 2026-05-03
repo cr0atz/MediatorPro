@@ -9,6 +9,10 @@ import {
   smtpSettings,
   zoomSettings,
   calendarSettings,
+  communications,
+  caseEvents,
+  partyTypes,
+  positionTypes,
   type User,
   type UpsertUser,
   type Case,
@@ -20,6 +24,10 @@ import {
   type SmtpSettings,
   type ZoomSettings,
   type CalendarSettings,
+  type Communication,
+  type CaseEvent,
+  type PartyType,
+  type PositionType,
   type InsertCase,
   type InsertParty,
   type InsertDocument,
@@ -29,6 +37,10 @@ import {
   type InsertSmtpSettings,
   type InsertZoomSettings,
   type InsertCalendarSettings,
+  type InsertCommunication,
+  type InsertCaseEvent,
+  type InsertPartyType,
+  type InsertPositionType,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -50,6 +62,16 @@ export interface IStorage {
   createParty(partyData: InsertParty): Promise<Party>;
   getPartiesByCase(caseId: string): Promise<Party[]>;
   updateParty(id: string, updates: Partial<InsertParty>): Promise<Party>;
+  
+  // Communication operations
+  createCommunication(communicationData: InsertCommunication): Promise<Communication>;
+  getCommunications(caseId: string): Promise<Communication[]>;
+  
+  // Case Event operations
+  createCaseEvent(eventData: InsertCaseEvent): Promise<CaseEvent>;
+  getCaseEvents(caseId: string): Promise<CaseEvent[]>;
+  updateCaseEvent(id: string, updates: Partial<InsertCaseEvent>): Promise<CaseEvent>;
+  deleteCaseEvent(id: string): Promise<void>;
   
   // Document operations
   createDocument(documentData: InsertDocument): Promise<Document>;
@@ -86,6 +108,18 @@ export interface IStorage {
   getCalendarSettings(userId: string): Promise<CalendarSettings | undefined>;
   createCalendarSettings(settingsData: InsertCalendarSettings): Promise<CalendarSettings>;
   updateCalendarSettings(userId: string, settingsData: Partial<InsertCalendarSettings>): Promise<CalendarSettings>;
+  
+  // Party Types operations
+  getPartyTypes(userId: string): Promise<PartyType[]>;
+  createPartyType(partyTypeData: InsertPartyType): Promise<PartyType>;
+  deletePartyType(id: string): Promise<void>;
+  initializeDefaultPartyTypes(userId: string): Promise<void>;
+
+  // Position Types operations
+  getPositionTypes(userId: string): Promise<PositionType[]>;
+  createPositionType(positionTypeData: InsertPositionType): Promise<PositionType>;
+  deletePositionType(id: string): Promise<void>;
+  initializeDefaultPositionTypes(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -111,12 +145,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Case operations
-  async getCases(mediatorId: string): Promise<Case[]> {
-    return await db
+  async getCases(mediatorId: string): Promise<(Case & { parties: Party[] })[]> {
+    const casesData = await db
       .select()
       .from(cases)
       .where(eq(cases.mediatorId, mediatorId))
       .orderBy(desc(cases.updatedAt));
+    
+    // Fetch parties for each case
+    const casesWithParties = await Promise.all(
+      casesData.map(async (caseData) => {
+        const caseParties = await this.getPartiesByCase(caseData.id);
+        return {
+          ...caseData,
+          parties: caseParties,
+        };
+      })
+    );
+    
+    return casesWithParties;
   }
 
   async getCase(id: string): Promise<Case | undefined> {
@@ -169,6 +216,43 @@ export class DatabaseStorage implements IStorage {
   async updateParty(id: string, updates: Partial<InsertParty>): Promise<Party> {
     const [party] = await db.update(parties).set(updates).where(eq(parties.id, id)).returning();
     return party;
+  }
+
+  // Communication operations
+  async createCommunication(communicationData: InsertCommunication): Promise<Communication> {
+    const [communication] = await db.insert(communications).values(communicationData).returning();
+    return communication;
+  }
+
+  async getCommunications(caseId: string): Promise<Communication[]> {
+    return await db
+      .select()
+      .from(communications)
+      .where(eq(communications.caseId, caseId))
+      .orderBy(desc(communications.createdAt));
+  }
+
+  // Case Event operations
+  async createCaseEvent(eventData: InsertCaseEvent): Promise<CaseEvent> {
+    const [event] = await db.insert(caseEvents).values(eventData).returning();
+    return event;
+  }
+
+  async getCaseEvents(caseId: string): Promise<CaseEvent[]> {
+    return await db
+      .select()
+      .from(caseEvents)
+      .where(eq(caseEvents.caseId, caseId))
+      .orderBy(caseEvents.eventDate);
+  }
+
+  async updateCaseEvent(id: string, updates: Partial<InsertCaseEvent>): Promise<CaseEvent> {
+    const [event] = await db.update(caseEvents).set(updates).where(eq(caseEvents.id, id)).returning();
+    return event;
+  }
+
+  async deleteCaseEvent(id: string): Promise<void> {
+    await db.delete(caseEvents).where(eq(caseEvents.id, id));
   }
 
   // Document operations
@@ -324,6 +408,84 @@ export class DatabaseStorage implements IStorage {
       .where(eq(calendarSettings.userId, userId))
       .returning();
     return updatedSettings;
+  }
+
+  // Party Types operations
+  async getPartyTypes(userId: string): Promise<PartyType[]> {
+    const types = await db
+      .select()
+      .from(partyTypes)
+      .where(eq(partyTypes.userId, userId))
+      .orderBy(partyTypes.sortOrder);
+    return types;
+  }
+
+  async createPartyType(partyTypeData: InsertPartyType): Promise<PartyType> {
+    const [newPartyType] = await db.insert(partyTypes).values(partyTypeData).returning();
+    return newPartyType;
+  }
+
+  async deletePartyType(id: string): Promise<void> {
+    await db.delete(partyTypes).where(eq(partyTypes.id, id));
+  }
+
+  async initializeDefaultPartyTypes(userId: string): Promise<void> {
+    // Check if user already has party types
+    const existingTypes = await this.getPartyTypes(userId);
+    if (existingTypes.length > 0) return;
+
+    // Create default party types (only Applicant and Respondent are true defaults)
+    const defaultTypes = [
+      { userId, value: 'applicant', label: 'Applicant', isDefault: true, sortOrder: 1 },
+      { userId, value: 'respondent', label: 'Respondent', isDefault: true, sortOrder: 2 },
+      { userId, value: 'director', label: 'Director', isDefault: false, sortOrder: 3 },
+      { userId, value: 'secretary', label: 'Secretary', isDefault: false, sortOrder: 4 },
+    ];
+
+    for (const typeData of defaultTypes) {
+      await this.createPartyType(typeData);
+    }
+  }
+
+  // Position Types operations
+  async getPositionTypes(userId: string): Promise<PositionType[]> {
+    const types = await db
+      .select()
+      .from(positionTypes)
+      .where(eq(positionTypes.userId, userId))
+      .orderBy(positionTypes.sortOrder);
+    return types;
+  }
+
+  async createPositionType(positionTypeData: InsertPositionType): Promise<PositionType> {
+    const [newPositionType] = await db.insert(positionTypes).values(positionTypeData).returning();
+    return newPositionType;
+  }
+
+  async deletePositionType(id: string): Promise<void> {
+    await db.delete(positionTypes).where(eq(positionTypes.id, id));
+  }
+
+  async initializeDefaultPositionTypes(userId: string): Promise<void> {
+    // Check if user already has position types
+    const existingTypes = await this.getPositionTypes(userId);
+    if (existingTypes.length > 0) return;
+
+    // Create default position types
+    const defaultTypes = [
+      { userId, value: 'Lawyer', label: 'Lawyer', isDefault: true, sortOrder: 1 },
+      { userId, value: 'Tenant', label: 'Tenant', isDefault: true, sortOrder: 2 },
+      { userId, value: 'Landlord', label: 'Landlord', isDefault: true, sortOrder: 3 },
+      { userId, value: 'Guarantor', label: 'Guarantor', isDefault: true, sortOrder: 4 },
+      { userId, value: 'Agent', label: 'Agent', isDefault: true, sortOrder: 5 },
+      { userId, value: 'Expert Witness', label: 'Expert Witness', isDefault: true, sortOrder: 6 },
+      { userId, value: 'Support Person', label: 'Support Person', isDefault: true, sortOrder: 7 },
+      { userId, value: 'Other', label: 'Other', isDefault: true, sortOrder: 8 },
+    ];
+
+    for (const typeData of defaultTypes) {
+      await this.createPositionType(typeData);
+    }
   }
 }
 

@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import CaseDetail from "./CaseDetail";
 import EmailModal from "./EmailModal";
+import ManualMeetingModal from "./ManualMeetingModal";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import type { Case } from "@shared/schema";
@@ -14,6 +15,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showManualMeetingModal, setShowManualMeetingModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const meetingFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -222,11 +224,20 @@ export default function Dashboard() {
                 <i className="fas fa-calendar-plus"></i>
                 <span>{createMeetingMutation.isPending ? 'Creating...' : 'Create Meeting from File'}</span>
               </Button>
+              <Button
+                onClick={() => setShowManualMeetingModal(true)}
+                variant="outline"
+                className="flex items-center space-x-2"
+                data-testid="button-create-meeting-manual"
+              >
+                <i className="fas fa-plus"></i>
+                <span>Create Meeting</span>
+              </Button>
               <input
                 type="file"
                 ref={meetingFileInputRef}
                 onChange={handleMeetingFileUpload}
-                accept=".pdf,.doc,.docx"
+                accept=".pdf,.doc,.docx,.ics"
                 className="hidden"
                 data-testid="input-meeting-file-upload"
               />
@@ -460,16 +471,19 @@ export default function Dashboard() {
                       Background
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Type
+                      Parties
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Applicant
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Respondent
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Next Session
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -502,10 +516,70 @@ export default function Dashboard() {
                         </p>
                       </td>
                       <td className="px-6 py-4">
-                        <Badge variant="outline" className="flex items-center space-x-1 w-fit">
-                          <i className={`fas ${caseItem.mediationType === 'Remote' ? 'fa-video' : 'fa-building'} text-xs`}></i>
-                          <span>{caseItem.mediationType || 'Not specified'}</span>
-                        </Badge>
+                        <div className="text-sm text-foreground">
+                          {(caseItem as any).parties && (caseItem as any).parties.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {(caseItem as any).parties.slice(0, 3).map((party: any, idx: number) => (
+                                <Badge key={idx} variant="outline" className="text-xs">
+                                  {party.partyType === 'applicant' ? 'A' : 'R'}
+                                </Badge>
+                              ))}
+                              {(caseItem as any).parties.length > 3 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{(caseItem as any).parties.length - 3}
+                                </Badge>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">None</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-foreground">
+                          {(caseItem as any).parties?.filter((p: any) => p.partyType === 'applicant').length > 0 ? (
+                            <div className="space-y-1">
+                              {(caseItem as any).parties
+                                .filter((p: any) => p.partyType === 'applicant')
+                                .slice(0, 2)
+                                .map((party: any, idx: number) => (
+                                  <div key={idx} className="text-xs truncate max-w-xs" title={party.entityName}>
+                                    {party.entityName}
+                                  </div>
+                                ))}
+                              {(caseItem as any).parties.filter((p: any) => p.partyType === 'applicant').length > 2 && (
+                                <div className="text-xs text-muted-foreground">
+                                  +{(caseItem as any).parties.filter((p: any) => p.partyType === 'applicant').length - 2} more
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">None</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-foreground">
+                          {(caseItem as any).parties?.filter((p: any) => p.partyType === 'respondent').length > 0 ? (
+                            <div className="space-y-1">
+                              {(caseItem as any).parties
+                                .filter((p: any) => p.partyType === 'respondent')
+                                .slice(0, 2)
+                                .map((party: any, idx: number) => (
+                                  <div key={idx} className="text-xs truncate max-w-xs" title={party.entityName}>
+                                    {party.entityName}
+                                  </div>
+                                ))}
+                              {(caseItem as any).parties.filter((p: any) => p.partyType === 'respondent').length > 2 && (
+                                <div className="text-xs text-muted-foreground">
+                                  +{(caseItem as any).parties.filter((p: any) => p.partyType === 'respondent').length - 2} more
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">None</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`status-badge ${getStatusBadgeClass(caseItem.status)}`}>
@@ -516,32 +590,6 @@ export default function Dashboard() {
                         <p className="text-sm text-foreground">
                           {formatDate(caseItem.mediationDate?.toString() || null)}
                         </p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedCaseId(caseItem.id);
-                            }}
-                            data-testid={`button-view-case-${caseItem.id}`}
-                          >
-                            <i className="fas fa-eye"></i>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowEmailModal(true);
-                            }}
-                            data-testid={`button-email-case-${caseItem.id}`}
-                          >
-                            <i className="fas fa-envelope"></i>
-                          </Button>
-                        </div>
                       </td>
                     </tr>
                   ))}
@@ -557,6 +605,13 @@ export default function Dashboard() {
           isOpen={showEmailModal}
           onClose={() => setShowEmailModal(false)}
           caseId={selectedCaseId}
+        />
+      )}
+      
+      {showManualMeetingModal && (
+        <ManualMeetingModal
+          isOpen={showManualMeetingModal}
+          onClose={() => setShowManualMeetingModal(false)}
         />
       )}
     </>

@@ -255,6 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
 
         console.log("File saved successfully, objectPath:", objectPath);
+        res.set('Location', objectPath);
         res.json({ objectPath });
       } catch (error) {
         console.error("Error uploading file via PUT:", error);
@@ -548,11 +549,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Extract text content (for RAG queries later)
+      // Extract text content (for RAG queries later) - read from storage for consistency with process-upload
+      let isProcessed = false;
       try {
-        extractedText = await aiService.extractTextFromDocument(file.buffer, file.mimetype);
+        const fileBuffer = await fileStorage.readFile(objectPath.replace("/objects/", ""));
+        extractedText = await aiService.extractTextFromDocument(fileBuffer, file.mimetype);
         // Sanitize the extracted text to remove null bytes
         extractedText = sanitizeTextForPostgres(extractedText) || '';
+        isProcessed = true;
       } catch (error) {
         console.error("Text extraction failed (non-critical):", error);
         extractedText = '';
@@ -669,8 +673,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mimeType: file.mimetype,
         category: 'Legal Document',
         objectPath: objectPath,
-        extractedText: sanitizeTextForPostgres(extractedText), // Sanitized to remove null bytes
-        isProcessed: !!extractedText, // Only mark as processed if text extraction succeeded
+        extractedText: extractedText,
+        isProcessed: isProcessed,
         uploadedBy: userId,
       };
 
@@ -1204,7 +1208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           // Log communication to database
-          await storage.db.insert(storage.schema.communications).values({
+          await storage.createCommunication({
             caseId,
             userId,
             type: 'email',
@@ -1234,6 +1238,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error("No SMTP settings configured");
         }
 
+        console.log("=== CASE EMAIL SEND DEBUG ===");
+        console.log("Recipients:", recipientEmails);
+        console.log("Mediator CC:", mediatorEmail);
+        console.log("Subject:", emailSubject);
+        console.log("SMTP Host:", smtpSettings.host);
+        console.log("SMTP Username:", smtpSettings.username);
+        console.log("From Email:", smtpSettings.fromEmail);
+
         // Import nodemailer dynamically
         const nodemailer = await import('nodemailer');
         
@@ -1242,26 +1254,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
           host: smtpSettings.host,
           port: smtpSettings.port,
           secure: smtpSettings.port === 465,
+          requireTLS: smtpSettings.port === 587, // Force STARTTLS for port 587
           auth: {
             user: smtpSettings.username,
             pass: smtpSettings.password,
           },
+          debug: true,
+          logger: true,
         });
 
         // Send to each recipient
         for (const recipientEmail of recipientEmails) {
-          await transporter.sendMail({
-            from: `"${smtpSettings.fromName}" <${smtpSettings.fromEmail}>`,
+          // Build envelope recipients list (to + cc)
+          const envelopeRecipients = [recipientEmail];
+          if (mediatorEmail) envelopeRecipients.push(mediatorEmail);
+          
+          console.log("Sending to:", recipientEmail);
+          console.log("Envelope FROM:", smtpSettings.username);
+          console.log("Envelope TO:", envelopeRecipients);
+          
+          const info = await transporter.sendMail({
+            // Use envelope to set MAIL FROM as authenticated user (required by server)
+            // while keeping the visible From header as the desired sender
+            envelope: {
+              from: smtpSettings.username, // MAIL FROM = authenticated user
+              to: envelopeRecipients,
+            },
+            from: `"${smtpSettings.fromName}" <${smtpSettings.fromEmail}>`, // Visible From header
             to: recipientEmail,
             cc: mediatorEmail,
             subject: emailSubject,
             text: emailBody,
             html: htmlBody,
           });
+          
+          console.log("Email sent successfully!");
+          console.log("Message ID:", info.messageId);
+          console.log("Response:", info.response);
         }
 
         // Log communication to database
-        await storage.db.insert(storage.schema.communications).values({
+        await storage.createCommunication({
           caseId,
           userId,
           type: 'email',
@@ -1291,17 +1324,179 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/cases/:id/communications', isAuthenticated, async (req: any, res) => {
     try {
       const caseId = req.params.id;
-      const communications = await storage.db
-        .select()
-        .from(storage.schema.communications)
-        .where(eq(storage.schema.communications.caseId, caseId))
-        .orderBy(desc(storage.schema.communications.createdAt));
-      
+      const communications = await storage.getCommunications(caseId);
       res.json(communications);
     } catch (error: any) {
       console.error("Error fetching communications:", error);
       res.status(500).json({ 
         message: "Failed to fetch communications",
+        error: error.message 
+      });
+    }
+  });
+
+  // Case Events routes
+  app.get('/api/cases/:id/events', isAuthenticated, async (req: any, res) => {
+    try {
+      const caseId = req.params.id;
+      const events = await storage.getCaseEvents(caseId);
+      res.json(events);
+    } catch (error: any) {
+      console.error("Error fetching case events:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch case events",
+        error: error.message 
+      });
+    }
+  });
+
+  app.post('/api/cases/:id/events', isAuthenticated, async (req: any, res) => {
+    try {
+      const caseId = req.params.id;
+      const userId = req.user.claims.sub;
+      console.log("Creating case event with data:", req.body);
+      
+      // Ensure eventDate is a Date object
+      const eventData = {
+        caseId,
+        eventType: req.body.eventType,
+        eventTitle: req.body.eventTitle || null,
+        eventDate: new Date(req.body.eventDate), // Convert ISO string to Date
+        location: req.body.location || null,
+        notes: req.body.notes || null,
+      };
+      
+      console.log("Processed event data:", eventData);
+      const event = await storage.createCaseEvent(eventData);
+
+      // Log the event creation in communications
+      await storage.createCommunication({
+        caseId: caseId,
+        userId: userId,
+        type: 'calendar',
+        direction: 'outgoing',
+        subject: `Event Scheduled: ${event.eventType}`,
+        content: `New event scheduled: "${event.eventTitle || event.eventType}"\n\nDate: ${new Date(event.eventDate).toLocaleString('en-AU')}\nLocation: ${event.location || 'Not specified'}\nNotes: ${event.notes || 'None'}`,
+        metadata: JSON.stringify({
+          eventId: event.id,
+          eventType: event.eventType,
+          eventTitle: event.eventTitle,
+          eventDate: event.eventDate,
+          location: event.location,
+        }),
+      });
+
+      res.json(event);
+    } catch (error: any) {
+      console.error("Error creating case event:", error);
+      res.status(500).json({ 
+        message: "Failed to create case event",
+        error: error.message 
+      });
+    }
+  });
+
+  app.patch('/api/cases/:caseId/events/:eventId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { caseId, eventId } = req.params;
+      const updates = req.body;
+      
+      // If setting this event as active, first deactivate all other events for this case
+      if (updates.isActive === true) {
+        const allEvents = await storage.getCaseEvents(caseId);
+        for (const event of allEvents) {
+          if (event.id !== eventId && event.isActive) {
+            await storage.updateCaseEvent(event.id, { isActive: false });
+          }
+        }
+      }
+      
+      const event = await storage.updateCaseEvent(eventId, updates);
+      res.json(event);
+    } catch (error: any) {
+      console.error("Error updating case event:", error);
+      res.status(500).json({ 
+        message: "Failed to update case event",
+        error: error.message 
+      });
+    }
+  });
+
+  app.delete('/api/cases/:caseId/events/:eventId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { eventId } = req.params;
+      await storage.deleteCaseEvent(eventId);
+      res.json({ message: "Event deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting case event:", error);
+      res.status(500).json({ 
+        message: "Failed to delete case event",
+        error: error.message 
+      });
+    }
+  });
+
+  app.post('/api/cases/:caseId/events/:eventId/sync-calendar', isAuthenticated, async (req: any, res) => {
+    try {
+      const { caseId, eventId } = req.params;
+      const userId = req.user.claims.sub;
+
+      // Get the event details
+      const events = await storage.getCaseEvents(caseId);
+      const event = events.find((e: any) => e.id === eventId);
+      
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Get case details for event description
+      const caseData = await storage.getCase(caseId);
+      
+      // Use the existing calendar service helper
+      const { service: calendarService, settings } = await getUserCalendarService(userId);
+
+      // Create calendar event
+      const eventStart = new Date(event.eventDate).toISOString();
+      const eventEnd = new Date(new Date(event.eventDate).getTime() + 60 * 60 * 1000).toISOString(); // 1 hour duration
+
+      const calendarEventId = await calendarService.createEvent({
+        summary: `${event.eventType}: ${event.eventTitle || caseData?.caseNumber}`,
+        description: `Case: ${caseData?.caseNumber}\nType: ${event.eventType}\n${event.notes || ''}`,
+        startDateTime: eventStart,
+        endDateTime: eventEnd,
+        location: event.location || '',
+      });
+
+      // Save refreshed tokens
+      await saveRefreshedTokens(userId, settings, calendarService);
+
+      // Update event with calendar event ID
+      await storage.updateCaseEvent(eventId, {
+        calendarEventId: calendarEventId,
+      });
+
+      // Log the calendar sync in communications
+      await storage.createCommunication({
+        caseId: caseId,
+        userId: userId,
+        type: 'calendar',
+        direction: 'outgoing',
+        subject: `Calendar Event Synced: ${event.eventType}`,
+        content: `Event "${event.eventTitle || event.eventType}" synced to Google Calendar\n\nDate: ${new Date(event.eventDate).toLocaleString('en-AU')}\nLocation: ${event.location || 'Not specified'}\nNotes: ${event.notes || 'None'}`,
+        metadata: JSON.stringify({
+          calendarEventId: calendarEventId,
+          eventType: event.eventType,
+          eventTitle: event.eventTitle,
+          eventDate: event.eventDate,
+          location: event.location,
+        }),
+      });
+
+      res.json({ message: "Event synced to Google Calendar", calendarEventId: calendarEventId });
+    } catch (error: any) {
+      console.error("Error syncing to calendar:", error);
+      res.status(500).json({ 
+        message: "Failed to sync to calendar",
         error: error.message 
       });
     }
@@ -1413,11 +1608,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "SMTP settings not found" });
       }
 
+      // DEBUG: Log all SMTP settings being used
+      console.log("=== SMTP TEST DEBUG ===");
+      console.log("Host:", settings.host);
+      console.log("Port:", settings.port);
+      console.log("Username:", settings.username);
+      console.log("From Email:", settings.fromEmail);
+      console.log("From Name:", settings.fromName);
+      console.log("Secure (DB value):", settings.secure);
+      console.log("Calculated secure:", settings.port === 465);
+      console.log("Calculated requireTLS:", settings.port === 587);
+
       // Import nodemailer dynamically
       const nodemailer = await import('nodemailer');
       
-      // Create transporter with user's SMTP settings
-      const transporter = nodemailer.default.createTransport({
+      // Build transporter options
+      const transporterOptions: any = {
         host: settings.host,
         port: settings.port,
         secure: settings.port === 465, // true for 465, false for other ports
@@ -1425,12 +1631,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
           user: settings.username,
           pass: settings.password,
         },
+        debug: true, // Enable debug output
+        logger: true, // Log to console
+      };
+
+      // For port 587, configure TLS properly
+      if (settings.port === 587) {
+        transporterOptions.requireTLS = true;
+        transporterOptions.tls = {
+          rejectUnauthorized: true, // Verify server certificate
+          minVersion: 'TLSv1.2',
+        };
+      }
+
+      console.log("Transporter options (without password):", {
+        ...transporterOptions,
+        auth: { user: transporterOptions.auth.user, pass: '***HIDDEN***' }
       });
 
-      // Send test email
+      // Create transporter with user's SMTP settings
+      const transporter = nodemailer.default.createTransport(transporterOptions);
+
+      // Verify connection first
+      console.log("Verifying SMTP connection...");
+      await transporter.verify();
+      console.log("SMTP connection verified successfully!");
+
+      // Send test email - send to the authenticated user's email, not fromEmail
+      const testRecipient = settings.username; // Use SMTP username as recipient for test
+      console.log("Sending test email to:", testRecipient);
+      console.log("From:", `"${settings.fromName}" <${settings.fromEmail}>`);
+
       const info = await transporter.sendMail({
-        from: `"${settings.fromName}" <${settings.fromEmail}>`,
-        to: settings.fromEmail, // Send test email to the sender
+        // Use envelope to set MAIL FROM as authenticated user (required by server)
+        // while keeping the visible From header as the desired sender
+        envelope: {
+          from: settings.username, // MAIL FROM = authenticated user
+          to: testRecipient,
+        },
+        from: `"${settings.fromName}" <${settings.fromEmail}>`, // Visible From header
+        to: testRecipient,
         subject: "SMTP Test Email - Mediator Pro",
         text: "This is a test email from Mediator Pro. If you received this, your SMTP settings are working correctly!",
         html: `
@@ -1449,16 +1689,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `,
       });
 
+      console.log("=== SMTP TEST SUCCESS ===");
       console.log("Test email sent:", info.messageId);
+      console.log("Response:", info.response);
       res.json({ 
         message: "SMTP connection test successful! Check your inbox for the test email.",
         messageId: info.messageId 
       });
     } catch (error: any) {
+      console.error("=== SMTP TEST FAILED ===");
       console.error("Error testing SMTP connection:", error);
+      console.error("Error code:", error.code);
+      console.error("Error command:", error.command);
+      console.error("Error response:", error.response);
+      console.error("Error responseCode:", error.responseCode);
       res.status(500).json({ 
         message: "Failed to test SMTP connection", 
-        error: error.message 
+        error: error.message,
+        code: error.code,
+        response: error.response
       });
     }
   });
@@ -1549,6 +1798,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid Calendar settings data", error: error.message });
       }
       res.status(500).json({ message: "Failed to save Calendar settings" });
+    }
+  });
+
+  // Party Types routes
+  app.get('/api/party-types', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      // Initialize default party types if user doesn't have any
+      await storage.initializeDefaultPartyTypes(userId);
+      const types = await storage.getPartyTypes(userId);
+      res.json(types);
+    } catch (error) {
+      console.error("Error fetching party types:", error);
+      res.status(500).json({ message: "Failed to fetch party types" });
+    }
+  });
+
+  app.post('/api/party-types', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { value, label } = req.body;
+      
+      if (!value || !label) {
+        return res.status(400).json({ message: "Value and label are required" });
+      }
+
+      // Get existing types to determine sort order
+      const existingTypes = await storage.getPartyTypes(userId);
+      const maxSortOrder = existingTypes.reduce((max, t) => Math.max(max, t.sortOrder || 0), 0);
+
+      const newType = await storage.createPartyType({
+        userId,
+        value: value.toLowerCase().replace(/\s+/g, '_'),
+        label,
+        isDefault: false,
+        sortOrder: maxSortOrder + 1,
+      });
+      res.json(newType);
+    } catch (error) {
+      console.error("Error creating party type:", error);
+      res.status(500).json({ message: "Failed to create party type" });
+    }
+  });
+
+  app.delete('/api/party-types/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      
+      // Verify the party type belongs to this user and is not a default type
+      const types = await storage.getPartyTypes(userId);
+      const typeToDelete = types.find(t => t.id === id);
+      
+      if (!typeToDelete) {
+        return res.status(404).json({ message: "Party type not found" });
+      }
+      
+      if (typeToDelete.isDefault) {
+        return res.status(400).json({ message: "Cannot delete default party types" });
+      }
+
+      await storage.deletePartyType(id);
+      res.json({ message: "Party type deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting party type:", error);
+      res.status(500).json({ message: "Failed to delete party type" });
+    }
+  });
+
+  // Position Types routes
+  app.get('/api/position-types', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      // Initialize default position types if user doesn't have any
+      await storage.initializeDefaultPositionTypes(userId);
+      const types = await storage.getPositionTypes(userId);
+      res.json(types);
+    } catch (error) {
+      console.error("Error fetching position types:", error);
+      res.status(500).json({ message: "Failed to fetch position types" });
+    }
+  });
+
+  app.post('/api/position-types', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { value, label } = req.body;
+      
+      if (!value || !label) {
+        return res.status(400).json({ message: "Value and label are required" });
+      }
+
+      // Get existing types to determine sort order
+      const existingTypes = await storage.getPositionTypes(userId);
+      const maxSortOrder = existingTypes.reduce((max, t) => Math.max(max, t.sortOrder || 0), 0);
+
+      const newType = await storage.createPositionType({
+        userId,
+        value: value,
+        label,
+        isDefault: false,
+        sortOrder: maxSortOrder + 1,
+      });
+      res.json(newType);
+    } catch (error) {
+      console.error("Error creating position type:", error);
+      res.status(500).json({ message: "Failed to create position type" });
+    }
+  });
+
+  app.delete('/api/position-types/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      
+      // Verify the position type belongs to this user and is not a default type
+      const types = await storage.getPositionTypes(userId);
+      const typeToDelete = types.find(t => t.id === id);
+      
+      if (!typeToDelete) {
+        return res.status(404).json({ message: "Position type not found" });
+      }
+      
+      if (typeToDelete.isDefault) {
+        return res.status(400).json({ message: "Cannot delete default position types" });
+      }
+
+      await storage.deletePositionType(id);
+      res.json({ message: "Position type deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting position type:", error);
+      res.status(500).json({ message: "Failed to delete position type" });
     }
   });
 
@@ -1921,6 +2302,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         zoomMeetingId: meeting.meetingId,
         zoomMeetingLink: meeting.joinUrl,
         zoomMeetingPassword: meeting.password,
+      });
+
+      // Log the Zoom meeting creation in communications
+      await storage.createCommunication({
+        caseId: caseId,
+        userId: userId,
+        type: 'zoom',
+        direction: 'outgoing',
+        subject: `Zoom Meeting Created: ${caseData.caseNumber}`,
+        content: `Zoom meeting created for mediation session\n\nTopic: Mediation Session - ${caseData.caseNumber}\nStart Time: ${new Date(startTime).toLocaleString('en-AU')}\nDuration: 210 minutes (3.5 hours)\nJoin URL: ${meeting.joinUrl}\nMeeting ID: ${meeting.meetingId}\nPassword: ${meeting.password || 'None'}`,
+        metadata: JSON.stringify({
+          zoomMeetingId: meeting.meetingId,
+          zoomMeetingLink: meeting.joinUrl,
+          startTime: startTime,
+          duration: 210,
+        }),
       });
 
       res.json(updatedCase);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,12 +34,20 @@ export default function EmailModal({ isOpen, onClose, caseId }: EmailModalProps)
   
   const { data: caseData } = useQuery<CaseWithDetails>({
     queryKey: ["/api/cases", caseId],
-    enabled: !!caseId,
+    enabled: !!caseId && isOpen,
+    refetchOnMount: 'always', // Always refetch when modal opens to get latest parties
   });
 
   const { data: templates = [] } = useQuery<EmailTemplate[]>({
     queryKey: ["/api/email/templates"],
   });
+
+  // Force refetch case data whenever modal opens to get latest parties
+  useEffect(() => {
+    if (isOpen && caseId) {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId] });
+    }
+  }, [isOpen, caseId]);
 
   const sendEmailMutation = useMutation({
     mutationFn: async (emailData: any) => {
@@ -91,21 +99,26 @@ export default function EmailModal({ isOpen, onClose, caseId }: EmailModalProps)
     if (!caseData || !caseData.parties) return [];
     
     const recipients: EmailRecipient[] = [];
+    const emailSet = new Set<string>(); // Track unique emails to avoid duplicates
     
     caseData.parties.forEach((party: Party) => {
-      if (party.primaryContactEmail && party.primaryContactName) {
+      // Add primary contact if email exists and not already added
+      if (party.primaryContactEmail && !emailSet.has(party.primaryContactEmail.toLowerCase())) {
+        emailSet.add(party.primaryContactEmail.toLowerCase());
         recipients.push({
           email: party.primaryContactEmail,
-          name: party.primaryContactName,
+          name: party.primaryContactName || party.entityName,
           role: `${party.entityName} (${party.partyType})`,
         });
       }
       
-      if (party.legalRepEmail && party.legalRepName) {
+      // Add legal rep if email exists and not already added (avoid duplicates)
+      if (party.legalRepEmail && !emailSet.has(party.legalRepEmail.toLowerCase())) {
+        emailSet.add(party.legalRepEmail.toLowerCase());
         recipients.push({
           email: party.legalRepEmail,
-          name: party.legalRepName,
-          role: `${party.legalRepName} - ${party.legalRepFirm || 'Legal Representative'}`,
+          name: party.legalRepName || `${party.entityName} - Legal Rep`,
+          role: `${party.legalRepName || party.entityName} - ${party.legalRepFirm || 'Legal Representative'}`,
         });
       }
     });

@@ -34,20 +34,9 @@ MAX_FILE_SIZE=52428800  # 50MB
 ### 📋 What You Need to Know
 
 #### Current Code Status
-⚠️ **Important**: The current codebase still uses Google Cloud Storage via `ObjectStorageService`. 
+✅ **Local file storage is fully implemented** via `LocalFileStorageService`.
 
-For full local file storage support, you have **two options**:
-
-**Option A: Use GCS (Recommended for now)**
-- Keep the current code as-is
-- Follow the optional GCS setup in Install.md Appendix A
-- This is the path of least resistance
-
-**Option B: Migrate to Local Storage (Requires Code Changes)**
-- Modify `server/objectStorage.ts` to use local file system
-- Update upload routes to save files to disk
-- Update download routes to serve from disk
-- Estimated effort: 2-3 hours of development
+Files are saved to `UPLOAD_DIR/documents/{uuid}` with ACL metadata in `UPLOAD_DIR/.acl/`. No Google Cloud Storage configuration is required for self-hosted deployments.
 
 ### 🐳 Docker PostgreSQL Compatibility
 
@@ -126,35 +115,16 @@ All documentation has been updated:
 - ✅ **Project_Status.md** - Feature status and roadmap
 - ✅ **DEPLOYMENT_CHECKLIST.md** - Production deployment checklist
 
-### 🔧 Code Changes Needed (Optional)
+### � RAG / AI Document Processing
 
-If you want to fully implement local file storage, here are the files to modify:
+Documents uploaded via **any method** are automatically indexed for RAG:
 
-1. **server/objectStorage.ts**
-   - Replace GCS client with fs/promises
-   - Implement local file save/read/delete
+- `LocalFileStorageService.saveFile()` stores the file and returns an `objectPath` in `/objects/{uuid}` format
+- The PUT endpoint returns a `Location` header so Uppy correctly uses the storage path as `uploadURL`
+- Text extraction runs at upload time for PDF, DOCX, TXT; `is_processed` is set to `true` on success
+- The AI Assistant queries only documents with `is_processed = true` and non-empty `extracted_text`
 
-2. **server/routes.ts** (document upload)
-   - Line ~337: Replace GCS upload with local file save
-   - Line ~407: Replace GCS download with local file read
-
-3. **server/routes.ts** (document download)
-   - Update to serve from local filesystem
-
-Would you like me to create the code changes for local file storage support? Or would you prefer to use GCS as currently implemented?
-
-### 💡 Recommended Approach
-
-**For Production Self-Hosted Deployment:**
-
-1. **Short-term** (Deploy now):
-   - Use the existing GCS code
-   - Set up a simple GCS bucket (free tier available)
-   - Follow Install.md for GCS setup
-
-2. **Long-term** (Future enhancement):
-   - Migrate to local storage when needed
-   - Or keep GCS for better scalability and backups
+To re-process a document that failed text extraction, use the **Re-Parse Document** action in the Documents tab.
 
 ### 📞 Need Help?
 

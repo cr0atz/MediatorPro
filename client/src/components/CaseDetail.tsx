@@ -33,7 +33,7 @@ import CaseNotes from "./CaseNotes";
 import EmailModal from "./EmailModal";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Case, Party, Document } from "@shared/schema";
+import type { Case, Party, Document, PartyType, PositionType } from "@shared/schema";
 import { 
   AlertTriangle, ArrowLeft, Mail, Video, Trash2, Info, Users, Folder, 
   StickyNote, Bot, Circle, Download, FileText, Plus, Phone, Edit2, CalendarDays,
@@ -58,6 +58,17 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
   const [editingIssues, setEditingIssues] = useState(false);
   const [disputeBackgroundText, setDisputeBackgroundText] = useState('');
   const [issuesText, setIssuesText] = useState('');
+
+  // Fetch party types for dropdown
+  const { data: partyTypes } = useQuery<PartyType[]>({
+    queryKey: ['/api/party-types'],
+  });
+
+  // Fetch position types for dropdown
+  const { data: positionTypes } = useQuery<PositionType[]>({
+    queryKey: ['/api/position-types'],
+  });
+
   const [partyForm, setPartyForm] = useState({
     entityName: '',
     partyType: 'applicant',
@@ -73,6 +84,16 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
   });
   const [editingParty, setEditingParty] = useState<any>(null);
   const [showEditPartyDialog, setShowEditPartyDialog] = useState(false);
+  const [showAddScheduleDialog, setShowAddScheduleDialog] = useState(false);
+  const [showEditScheduleDialog, setShowEditScheduleDialog] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [scheduleForm, setScheduleForm] = useState({
+    eventType: '',
+    eventTitle: '',
+    eventDate: '',
+    location: '',
+    notes: '',
+  });
 
   const addPartyMutation = useMutation({
     mutationFn: async (partyData: any) => {
@@ -162,6 +183,149 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
     },
   });
 
+  const addScheduleMutation = useMutation({
+    mutationFn: async (scheduleData: any) => {
+      // Convert datetime-local string to ISO string for the server
+      const eventData = {
+        ...scheduleData,
+        eventDate: new Date(scheduleData.eventDate).toISOString(),
+      };
+      const response = await apiRequest('POST', `/api/cases/${caseId}/events`, eventData);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to add schedule');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId, "events"] });
+      toast({
+        title: "Success",
+        description: "Schedule added successfully",
+      });
+      setShowAddScheduleDialog(false);
+      setScheduleForm({
+        eventType: '',
+        eventTitle: '',
+        eventDate: '',
+        location: '',
+        notes: '',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add schedule",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateScheduleMutation = useMutation({
+    mutationFn: async ({ eventId, eventData }: { eventId: string; eventData: any }) => {
+      const data = {
+        ...eventData,
+        eventDate: new Date(eventData.eventDate).toISOString(),
+      };
+      const response = await apiRequest('PATCH', `/api/cases/${caseId}/events/${eventId}`, data);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update event');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId, "events"] });
+      toast({
+        title: "Success",
+        description: "Event updated successfully",
+      });
+      setShowEditScheduleDialog(false);
+      setEditingEvent(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update event",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteScheduleMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      const response = await apiRequest('DELETE', `/api/cases/${caseId}/events/${eventId}`);
+      if (!response.ok) {
+        throw new Error('Failed to delete event');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId, "events"] });
+      toast({
+        title: "Success",
+        description: "Event deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete event",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const setActiveEventMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      const response = await apiRequest('PATCH', `/api/cases/${caseId}/events/${eventId}`, { isActive: true });
+      if (!response.ok) {
+        throw new Error('Failed to set active event');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId, "events"] });
+      toast({
+        title: "Success",
+        description: "Event set as active",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: "Failed to set active event",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const syncToCalendarMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      const response = await apiRequest('POST', `/api/cases/${caseId}/events/${eventId}/sync-calendar`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to sync to calendar');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cases", caseId, "events"] });
+      toast({
+        title: "Success",
+        description: "Event synced to Google Calendar",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to sync to calendar",
+        variant: "destructive",
+      });
+    },
+  });
+
   const deleteCaseMutation = useMutation({
     mutationFn: async () => {
       return await apiRequest('DELETE', `/api/cases/${caseId}`);
@@ -211,6 +375,8 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
   });
 
   const [editCaseForm, setEditCaseForm] = useState({
+    caseNumber: '',
+    mediationNumber: '',
     mediatorName: '',
     mediationType: '',
     mediationDate: '',
@@ -299,6 +465,8 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
 
   const handleEditCase = () => {
     const updates: any = {};
+    if (editCaseForm.caseNumber) updates.caseNumber = editCaseForm.caseNumber;
+    if (editCaseForm.mediationNumber) updates.mediationNumber = editCaseForm.mediationNumber;
     if (editCaseForm.mediatorName) updates.mediatorName = editCaseForm.mediatorName;
     if (editCaseForm.mediationType) updates.mediationType = editCaseForm.mediationType;
     if (editCaseForm.mediationDate) {
@@ -350,6 +518,17 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch communications");
+      return res.json();
+    },
+  });
+
+  const { data: caseEvents = [] } = useQuery({
+    queryKey: ["/api/cases", caseId, "events"],
+    queryFn: async () => {
+      const res = await fetch(`/api/cases/${caseId}/events`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch events");
       return res.json();
     },
   });
@@ -581,15 +760,26 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                 <CardContent className="p-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-foreground">Case Information</h3>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => setShowEditCaseDialog(true)}
-                      data-testid="button-edit-case"
-                    >
-                      <Edit2 className="w-4 h-4 mr-2" />
-                      Edit
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setShowAddScheduleDialog(true)}
+                        data-testid="button-add-schedule"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Schedule
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setShowEditCaseDialog(true)}
+                        data-testid="button-edit-case"
+                      >
+                        <Edit2 className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -616,7 +806,171 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                       <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Premises</p>
                       <p className="text-sm text-foreground">{case_.premises || 'Not specified'}</p>
                     </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Applicant(s)</p>
+                      <div className="text-sm text-foreground">
+                        {applicants.length > 0 ? (
+                          <div className="space-y-1">
+                            {applicants.map((p, idx) => (
+                              <div key={idx}>{p.entityName}</div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">None</span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Respondent(s)</p>
+                      <div className="text-sm text-foreground">
+                        {respondents.length > 0 ? (
+                          <div className="space-y-1">
+                            {respondents.map((p, idx) => (
+                              <div key={idx}>{p.entityName}</div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">None</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase mb-1">All Parties</p>
+                      <div className="text-sm text-foreground">
+                        {case_?.parties && case_.parties.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {case_.parties.map((p: any, idx: number) => (
+                              <div key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-muted/30 rounded border text-xs">
+                                <Badge variant="outline" className="text-xs">
+                                  {p.partyType}
+                                </Badge>
+                                <span>{p.entityName}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">No parties added yet</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Scheduled Events Section */}
+                  {caseEvents && caseEvents.length > 0 && (
+                    <div className="mt-6 pt-6 border-t">
+                      <h4 className="text-sm font-semibold text-foreground mb-3">Scheduled Events</h4>
+                      <div className="space-y-3">
+                        {caseEvents.map((event: any) => {
+                          const eventDate = new Date(event.eventDate);
+                          const isUpcoming = eventDate > new Date();
+                          return (
+                            <div key={event.id} className={`p-3 rounded-lg border ${event.isActive ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-200' : isUpcoming ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Badge variant={isUpcoming ? "default" : "secondary"} className="text-xs">
+                                      {event.eventType}
+                                    </Badge>
+                                    {event.isActive && (
+                                      <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 border-amber-300 font-semibold">
+                                        ⭐ Active Event
+                                      </Badge>
+                                    )}
+                                    {isUpcoming && !event.isActive && (
+                                      <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                        Upcoming
+                                      </Badge>
+                                    )}
+                                    {event.calendarEventId && (
+                                      <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                                        📅 Synced
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {event.eventTitle && (
+                                    <p className="text-sm font-medium text-foreground">{event.eventTitle}</p>
+                                  )}
+                                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                    <div className="flex items-center gap-1">
+                                      <CalendarDays className="w-3 h-3" />
+                                      {eventDate.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                    </div>
+                                    <div>
+                                      {eventDate.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                    {event.location && (
+                                      <div className="flex items-center gap-1">
+                                        📍 {event.location}
+                                      </div>
+                                    )}
+                                  </div>
+                                  {event.notes && (
+                                    <p className="text-xs text-muted-foreground mt-2">{event.notes}</p>
+                                  )}
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  {!event.isActive && isUpcoming && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 text-xs"
+                                      onClick={() => setActiveEventMutation.mutate(event.id)}
+                                      title="Set as active event"
+                                    >
+                                      ⭐
+                                    </Button>
+                                  )}
+                                  {!event.calendarEventId && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 text-xs"
+                                      onClick={() => syncToCalendarMutation.mutate(event.id)}
+                                      title="Sync to Google Calendar"
+                                    >
+                                      📅
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => {
+                                      setEditingEvent(event);
+                                      setScheduleForm({
+                                        eventType: event.eventType,
+                                        eventTitle: event.eventTitle || '',
+                                        eventDate: new Date(event.eventDate).toISOString().slice(0, 16),
+                                        location: event.location || '',
+                                        notes: event.notes || '',
+                                      });
+                                      setShowEditScheduleDialog(true);
+                                    }}
+                                    title="Edit event"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs text-destructive hover:text-destructive"
+                                    onClick={() => {
+                                      if (confirm('Are you sure you want to delete this event?')) {
+                                        deleteScheduleMutation.mutate(event.id);
+                                      }
+                                    }}
+                                    title="Delete event"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -1174,7 +1528,10 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                 <h2 className="text-2xl font-bold text-foreground">Meetings & Events</h2>
                 <p className="text-muted-foreground">Manage Zoom meetings, phone calls, and calendar events</p>
               </div>
-              <Button className="flex items-center space-x-2">
+              <Button 
+                onClick={() => setShowAddScheduleDialog(true)}
+                className="flex items-center space-x-2"
+              >
                 <Plus className="w-4 h-4" />
                 <span>Schedule Event</span>
               </Button>
@@ -1243,14 +1600,16 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                     <CalendarDays className="w-5 h-5 mr-2 text-primary" />
                     Calendar Events
                   </h3>
-                  <Button 
-                    onClick={handleSyncToCalendar}
-                    disabled={isSyncingCalendar}
-                    className="flex items-center space-x-2"
-                  >
-                    <CalendarDays className="w-4 h-4" />
-                    <span>{isSyncingCalendar ? 'Syncing...' : 'Sync to Calendar'}</span>
-                  </Button>
+                  {!case_.calendarEventId && case_.mediationDate && (
+                    <Button 
+                      onClick={handleSyncToCalendar}
+                      disabled={isSyncingCalendar}
+                      className="flex items-center space-x-2"
+                    >
+                      <CalendarDays className="w-4 h-4" />
+                      <span>{isSyncingCalendar ? 'Syncing...' : 'Sync to Calendar'}</span>
+                    </Button>
+                  )}
                 </div>
                 
                 <div className="space-y-3">
@@ -1286,17 +1645,65 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                     <Phone className="w-5 h-5 mr-2 text-primary" />
                     Scheduled Phone Calls
                   </h3>
-                  <Button variant="outline" className="flex items-center space-x-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setScheduleForm({
+                        eventType: 'Phone Call',
+                        eventTitle: '',
+                        eventDate: '',
+                        location: 'Phone',
+                        notes: '',
+                      });
+                      setShowAddScheduleDialog(true);
+                    }}
+                    className="flex items-center space-x-2"
+                  >
                     <Plus className="w-4 h-4" />
                     <span>Schedule Call</span>
                   </Button>
                 </div>
                 
-                <div className="text-center py-8 text-muted-foreground">
-                  <Phone className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No phone calls scheduled</p>
-                  <p className="text-sm mt-2">Schedule phone calls with parties to keep track of important conversations</p>
-                </div>
+                {caseEvents?.filter((e: any) => e.eventType === 'Phone Call').length > 0 ? (
+                  <div className="space-y-3">
+                    {caseEvents
+                      .filter((e: any) => e.eventType === 'Phone Call')
+                      .map((event: any) => {
+                        const eventDate = new Date(event.eventDate);
+                        const isUpcoming = eventDate > new Date();
+                        return (
+                          <div key={event.id} className={`p-3 rounded-lg border ${isUpcoming ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-foreground">{event.eventTitle || 'Phone Call'}</p>
+                                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                                  <div className="flex items-center gap-1">
+                                    <CalendarDays className="w-3 h-3" />
+                                    {eventDate.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                  </div>
+                                  <div>{eventDate.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}</div>
+                                  {isUpcoming && (
+                                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                      Upcoming
+                                    </Badge>
+                                  )}
+                                </div>
+                                {event.notes && (
+                                  <p className="text-xs text-muted-foreground mt-2">{event.notes}</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Phone className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No phone calls scheduled</p>
+                    <p className="text-sm mt-2">Schedule phone calls with parties to keep track of important conversations</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -1361,8 +1768,16 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="applicant">Applicant</SelectItem>
-                    <SelectItem value="respondent">Respondent</SelectItem>
+                    {partyTypes && partyTypes.length > 0 ? (
+                      partyTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.value}>{type.label}</SelectItem>
+                      ))
+                    ) : (
+                      <>
+                        <SelectItem value="applicant">Applicant</SelectItem>
+                        <SelectItem value="respondent">Respondent</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -1373,14 +1788,22 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                     <SelectValue placeholder="Select position..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Lawyer">Lawyer</SelectItem>
-                    <SelectItem value="Tenant">Tenant</SelectItem>
-                    <SelectItem value="Landlord">Landlord</SelectItem>
-                    <SelectItem value="Guarantor">Guarantor</SelectItem>
-                    <SelectItem value="Agent">Agent</SelectItem>
-                    <SelectItem value="Expert Witness">Expert Witness</SelectItem>
-                    <SelectItem value="Support Person">Support Person</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    {positionTypes && positionTypes.length > 0 ? (
+                      positionTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.value}>{type.label}</SelectItem>
+                      ))
+                    ) : (
+                      <>
+                        <SelectItem value="Lawyer">Lawyer</SelectItem>
+                        <SelectItem value="Tenant">Tenant</SelectItem>
+                        <SelectItem value="Landlord">Landlord</SelectItem>
+                        <SelectItem value="Guarantor">Guarantor</SelectItem>
+                        <SelectItem value="Agent">Agent</SelectItem>
+                        <SelectItem value="Expert Witness">Expert Witness</SelectItem>
+                        <SelectItem value="Support Person">Support Person</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -1512,8 +1935,16 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="applicant">Applicant</SelectItem>
-                    <SelectItem value="respondent">Respondent</SelectItem>
+                    {partyTypes && partyTypes.length > 0 ? (
+                      partyTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.value}>{type.label}</SelectItem>
+                      ))
+                    ) : (
+                      <>
+                        <SelectItem value="applicant">Applicant</SelectItem>
+                        <SelectItem value="respondent">Respondent</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -1524,14 +1955,22 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
                     <SelectValue placeholder="Select position..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Lawyer">Lawyer</SelectItem>
-                    <SelectItem value="Tenant">Tenant</SelectItem>
-                    <SelectItem value="Landlord">Landlord</SelectItem>
-                    <SelectItem value="Guarantor">Guarantor</SelectItem>
-                    <SelectItem value="Agent">Agent</SelectItem>
-                    <SelectItem value="Expert Witness">Expert Witness</SelectItem>
-                    <SelectItem value="Support Person">Support Person</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    {positionTypes && positionTypes.length > 0 ? (
+                      positionTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.value}>{type.label}</SelectItem>
+                      ))
+                    ) : (
+                      <>
+                        <SelectItem value="Lawyer">Lawyer</SelectItem>
+                        <SelectItem value="Tenant">Tenant</SelectItem>
+                        <SelectItem value="Landlord">Landlord</SelectItem>
+                        <SelectItem value="Guarantor">Guarantor</SelectItem>
+                        <SelectItem value="Agent">Agent</SelectItem>
+                        <SelectItem value="Expert Witness">Expert Witness</SelectItem>
+                        <SelectItem value="Support Person">Support Person</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -1636,11 +2075,207 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
         </DialogContent>
       </Dialog>
 
+      {/* Add Schedule Dialog */}
+      <Dialog open={showAddScheduleDialog} onOpenChange={setShowAddScheduleDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Schedule Event</DialogTitle>
+            <DialogDescription>
+              Schedule a new event for this case (Court Listing, Conference, Hearing, etc.)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="eventType">Event Type *</Label>
+              <Select 
+                value={scheduleForm.eventType} 
+                onValueChange={(value) => setScheduleForm({...scheduleForm, eventType: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select event type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Court Listings">Court Listings</SelectItem>
+                  <SelectItem value="Conciliation Conference">Conciliation Conference</SelectItem>
+                  <SelectItem value="Mention">Mention</SelectItem>
+                  <SelectItem value="Hearing">Hearing</SelectItem>
+                  <SelectItem value="Trial">Trial</SelectItem>
+                  <SelectItem value="Zoom Meeting">Zoom Meeting</SelectItem>
+                  <SelectItem value="Phone Call">Phone Call</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="eventTitle">Event Title (Optional)</Label>
+              <Input
+                id="eventTitle"
+                value={scheduleForm.eventTitle}
+                onChange={(e) => setScheduleForm({...scheduleForm, eventTitle: e.target.value})}
+                placeholder="E.g., Initial hearing, Follow-up call..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="eventDate">Date & Time *</Label>
+              <Input
+                id="eventDate"
+                type="datetime-local"
+                value={scheduleForm.eventDate}
+                onChange={(e) => setScheduleForm({...scheduleForm, eventDate: e.target.value})}
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Select both date and time. Click the calendar icon to choose date, then set the time.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="location">Location (Optional)</Label>
+              <Input
+                id="location"
+                value={scheduleForm.location}
+                onChange={(e) => setScheduleForm({...scheduleForm, location: e.target.value})}
+                placeholder="E.g., Court Room 5, Zoom, Phone..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Textarea
+                id="notes"
+                value={scheduleForm.notes}
+                onChange={(e) => setScheduleForm({...scheduleForm, notes: e.target.value})}
+                placeholder="Additional notes about this event..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowAddScheduleDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                console.log('Schedule form data:', scheduleForm);
+                addScheduleMutation.mutate(scheduleForm);
+              }}
+              disabled={!scheduleForm.eventType || !scheduleForm.eventDate || addScheduleMutation.isPending}
+              title={!scheduleForm.eventType ? "Please select event type" : !scheduleForm.eventDate ? "Please select date and time" : ""}
+            >
+              {addScheduleMutation.isPending ? "Adding..." : "Add Schedule"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Schedule Dialog */}
+      <Dialog open={showEditScheduleDialog} onOpenChange={(open) => {
+        setShowEditScheduleDialog(open);
+        if (!open) {
+          setEditingEvent(null);
+          setScheduleForm({
+            eventType: '',
+            eventTitle: '',
+            eventDate: '',
+            location: '',
+            notes: '',
+          });
+        }
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Schedule Event</DialogTitle>
+            <DialogDescription>
+              Update the event details
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-eventType">Event Type *</Label>
+              <Select 
+                value={scheduleForm.eventType} 
+                onValueChange={(value) => setScheduleForm({...scheduleForm, eventType: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select event type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Court Listings">Court Listings</SelectItem>
+                  <SelectItem value="Conciliation Conference">Conciliation Conference</SelectItem>
+                  <SelectItem value="Mention">Mention</SelectItem>
+                  <SelectItem value="Hearing">Hearing</SelectItem>
+                  <SelectItem value="Trial">Trial</SelectItem>
+                  <SelectItem value="Zoom Meeting">Zoom Meeting</SelectItem>
+                  <SelectItem value="Phone Call">Phone Call</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-eventTitle">Event Title (Optional)</Label>
+              <Input
+                id="edit-eventTitle"
+                value={scheduleForm.eventTitle}
+                onChange={(e) => setScheduleForm({...scheduleForm, eventTitle: e.target.value})}
+                placeholder="E.g., Initial hearing, Follow-up call..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-eventDate">Date & Time *</Label>
+              <Input
+                id="edit-eventDate"
+                type="datetime-local"
+                value={scheduleForm.eventDate}
+                onChange={(e) => setScheduleForm({...scheduleForm, eventDate: e.target.value})}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-location">Location (Optional)</Label>
+              <Input
+                id="edit-location"
+                value={scheduleForm.location}
+                onChange={(e) => setScheduleForm({...scheduleForm, location: e.target.value})}
+                placeholder="E.g., Court Room 5, Zoom, Phone..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-notes">Notes (Optional)</Label>
+              <Textarea
+                id="edit-notes"
+                value={scheduleForm.notes}
+                onChange={(e) => setScheduleForm({...scheduleForm, notes: e.target.value})}
+                placeholder="Additional notes about this event..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowEditScheduleDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => editingEvent && updateScheduleMutation.mutate({
+                eventId: editingEvent.id,
+                eventData: scheduleForm
+              })}
+              disabled={!scheduleForm.eventType || !scheduleForm.eventDate || updateScheduleMutation.isPending}
+            >
+              {updateScheduleMutation.isPending ? "Updating..." : "Update Event"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showEditCaseDialog} onOpenChange={(open) => {
         setShowEditCaseDialog(open);
         if (open && case_) {
           // Pre-fill form with current values when opening
           setEditCaseForm({
+            caseNumber: case_.caseNumber || '',
+            mediationNumber: case_.mediationNumber || '',
             mediatorName: case_.mediatorName || '',
             mediationType: case_.mediationType || '',
             mediationDate: case_.mediationDate 
@@ -1650,14 +2285,96 @@ export default function CaseDetail({ caseId, onBack }: CaseDetailProps) {
           });
         }
       }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Case Information</DialogTitle>
             <DialogDescription>
-              Update case details including session date/time, mediator, and mediation type.
+              Update case details including case numbers, parties, session date/time, and mediation type.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-caseNumber">Case Number</Label>
+                <Input
+                  id="edit-caseNumber"
+                  value={editCaseForm.caseNumber}
+                  onChange={(e) => setEditCaseForm({...editCaseForm, caseNumber: e.target.value})}
+                  placeholder="Enter case number"
+                  data-testid="input-edit-case-number"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-mediationNumber">Mediation Number</Label>
+                <Input
+                  id="edit-mediationNumber"
+                  value={editCaseForm.mediationNumber}
+                  onChange={(e) => setEditCaseForm({...editCaseForm, mediationNumber: e.target.value})}
+                  placeholder="Enter mediation number"
+                  data-testid="input-edit-mediation-number"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label>Applicant(s)</Label>
+              <div className="p-3 bg-muted/30 rounded-md border text-sm">
+                {applicants.length > 0 ? (
+                  <div className="space-y-1">
+                    {applicants.map((p, idx) => (
+                      <div key={idx}>{p.entityName}</div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground">No applicants added</span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                To edit parties, go to the Parties tab
+              </p>
+            </div>
+
+            <div>
+              <Label>Respondent(s)</Label>
+              <div className="p-3 bg-muted/30 rounded-md border text-sm">
+                {respondents.length > 0 ? (
+                  <div className="space-y-1">
+                    {respondents.map((p, idx) => (
+                      <div key={idx}>{p.entityName}</div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground">No respondents added</span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                To edit parties, go to the Parties tab
+              </p>
+            </div>
+
+            <div>
+              <Label>All Parties</Label>
+              <div className="p-3 bg-muted/30 rounded-md border text-sm max-h-32 overflow-y-auto">
+                {case_?.parties && case_.parties.length > 0 ? (
+                  <div className="space-y-2">
+                    {case_.parties.map((p: any, idx: number) => (
+                      <div key={idx} className="flex items-start gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          {p.partyType}
+                        </Badge>
+                        <span>{p.entityName}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground">No parties added yet</span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                To add or edit parties, go to the Parties tab
+              </p>
+            </div>
+
             <div>
               <Label htmlFor="edit-mediatorName">Mediator Name</Label>
               <Input

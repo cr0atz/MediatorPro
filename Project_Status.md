@@ -1,7 +1,7 @@
 # Mediator Pro - Project Status
 
-**Last Updated**: October 13, 2025  
-**Version**: 1.0.0  
+**Last Updated**: May 4, 2026  
+**Version**: 1.2.0  
 **Status**: Production Ready 🚀
 
 ## ✅ Implemented Features
@@ -171,21 +171,17 @@
 - Zoom Settings
 - Calendar Settings (OAuth tokens)
 
-## 🎯 Recent Achievements (Session 9)
+## 🎯 Recent Achievements (v1.2.0 — RAG Document Processing Fix)
 
-### Google Calendar OAuth Migration
-- ✅ Migrated from Replit connector to user's own OAuth credentials
-- ✅ Extended calendarSettings schema with OAuth token storage
-- ✅ Created GoogleCalendarOAuthService with OAuth2Client
-- ✅ Implemented OAuth flow with CSRF protection
-- ✅ Added "Connect to Google Calendar" UI in Settings
-- ✅ Token refresh automation with helper functions
-- ✅ Updated all calendar routes to use OAuth service
-- ✅ Fixed timezone bug (removed forced UTC)
-- ✅ Implemented react-big-calendar for month view
-- ✅ Fixed browser compatibility issues (require → import)
+### RAG Pipeline Fully Fixed (May 2026)
+- ✅ **Root cause identified**: Uppy AwsS3 plugin was using the PUT URL as `uploadURL` fallback when no `Location` header was returned — causing all regular document uploads to store the wrong `objectPath` in the database
+- ✅ **PUT endpoint fix**: Added `Location` header to PUT response (`/api/documents/upload-local/:fileId`) so Uppy correctly picks up the storage path (`/objects/{uuid}`) as the upload URL
+- ✅ **Create-from-file fix**: Corrected `isProcessed` boolean logic and file reading in the `create-from-file` route to use `fileStorage.readFile()` consistent with the `process-upload` route
+- ✅ **Bulk data migration**: Updated all 69 existing documents that had wrong `objectPath` values — re-extracted text from PDF, TXT, and DOCX files; set `is_processed = true` for 74 of 94 total documents
+- ✅ **RAG now fully operational**: AI Assistant can query all uploaded case documents regardless of upload method
 
-### Previous Sessions Highlights
+### v1.1.0 — Previous Session Highlights
+- **Session 9**: Google Calendar OAuth migration to user's own credentials
 - **Session 8**: Google Calendar integration with two-way sync
 - **Session 7**: Zoom and Google Calendar credentials management
 - **Session 6**: Zoom video conferencing integration

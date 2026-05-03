@@ -11,8 +11,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { SmtpSettings, EmailTemplate, InsertSmtpSettings, InsertEmailTemplate, ZoomSettings, CalendarSettings, InsertZoomSettings, InsertCalendarSettings, User } from "@shared/schema";
-import { Server, Mail, Plus, Trash2, Save, TestTube, Video, Calendar, Link2, CheckCircle, XCircle, UserCircle, Loader2 } from "lucide-react";
+import { SmtpSettings, EmailTemplate, InsertSmtpSettings, InsertEmailTemplate, ZoomSettings, CalendarSettings, InsertZoomSettings, InsertCalendarSettings, User, PartyType, PositionType } from "@shared/schema";
+import { Server, Mail, Plus, Trash2, Save, TestTube, Video, Calendar, Link2, CheckCircle, XCircle, UserCircle, Loader2, Users, Briefcase } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertSmtpSettingsSchema, insertEmailTemplateSchema, insertZoomSettingsSchema, insertCalendarSettingsSchema } from "@shared/schema";
@@ -48,6 +48,10 @@ export default function Settings() {
   const { toast } = useToast();
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
   const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
+  const [newPartyTypeLabel, setNewPartyTypeLabel] = useState('');
+  const [deletePartyTypeId, setDeletePartyTypeId] = useState<string | null>(null);
+  const [newPositionTypeLabel, setNewPositionTypeLabel] = useState('');
+  const [deletePositionTypeId, setDeletePositionTypeId] = useState<string | null>(null);
 
   // Fetch SMTP settings
   const { data: smtpSettings, isLoading: isLoadingSmtp } = useQuery<SmtpSettings>({
@@ -67,6 +71,106 @@ export default function Settings() {
   // Fetch Calendar settings
   const { data: calendarSettings, isLoading: isLoadingCalendar } = useQuery<CalendarSettings>({
     queryKey: ['/api/calendar-settings'],
+  });
+
+  // Fetch Party Types
+  const { data: partyTypes, isLoading: isLoadingPartyTypes } = useQuery<PartyType[]>({
+    queryKey: ['/api/party-types'],
+  });
+
+  // Party Types mutations
+  const createPartyTypeMutation = useMutation({
+    mutationFn: async (data: { value: string; label: string }) => {
+      const response = await apiRequest('POST', '/api/party-types', data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/party-types'] });
+      setNewPartyTypeLabel('');
+      toast({
+        title: "Party type added",
+        description: "The new party type has been added successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add party type",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletePartyTypeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest('DELETE', `/api/party-types/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/party-types'] });
+      setDeletePartyTypeId(null);
+      toast({
+        title: "Party type deleted",
+        description: "The party type has been removed.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete party type",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Fetch Position Types
+  const { data: positionTypes, isLoading: isLoadingPositionTypes } = useQuery<PositionType[]>({
+    queryKey: ['/api/position-types'],
+  });
+
+  // Position Types mutations
+  const createPositionTypeMutation = useMutation({
+    mutationFn: async (data: { value: string; label: string }) => {
+      const response = await apiRequest('POST', '/api/position-types', data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/position-types'] });
+      setNewPositionTypeLabel('');
+      toast({
+        title: "Position type added",
+        description: "The new position type has been added successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add position type",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletePositionTypeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest('DELETE', `/api/position-types/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/position-types'] });
+      setDeletePositionTypeId(null);
+      toast({
+        title: "Position type deleted",
+        description: "The position type has been removed.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete position type",
+        variant: "destructive",
+      });
+    },
   });
 
   // SMTP form
@@ -503,6 +607,14 @@ export default function Settings() {
             <TabsTrigger value="templates" className="data-[state=active]:bg-background" data-testid="tab-templates">
               <Mail className="w-4 h-4 mr-2" />
               Email Templates
+            </TabsTrigger>
+            <TabsTrigger value="party-types" className="data-[state=active]:bg-background" data-testid="tab-party-types">
+              <Users className="w-4 h-4 mr-2" />
+              Party Types
+            </TabsTrigger>
+            <TabsTrigger value="position-types" className="data-[state=active]:bg-background" data-testid="tab-position-types">
+              <Briefcase className="w-4 h-4 mr-2" />
+              Position Types
             </TabsTrigger>
           </TabsList>
 
@@ -1148,8 +1260,222 @@ export default function Settings() {
               </Card>
             </div>
           </TabsContent>
+
+          <TabsContent value="party-types" className="pt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Users className="w-5 h-5 mr-2" />
+                  Party Types
+                </CardTitle>
+                <CardDescription>
+                  Manage the party types available when adding parties to cases. Default types cannot be deleted.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingPartyTypes ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Add new party type */}
+                    <div className="flex gap-4">
+                      <Input
+                        placeholder="Enter new party type (e.g., Witness)"
+                        value={newPartyTypeLabel}
+                        onChange={(e) => setNewPartyTypeLabel(e.target.value)}
+                        className="flex-1"
+                        data-testid="input-new-party-type"
+                      />
+                      <Button
+                        onClick={() => {
+                          if (newPartyTypeLabel.trim()) {
+                            createPartyTypeMutation.mutate({
+                              value: newPartyTypeLabel.trim(),
+                              label: newPartyTypeLabel.trim(),
+                            });
+                          }
+                        }}
+                        disabled={!newPartyTypeLabel.trim() || createPartyTypeMutation.isPending}
+                        data-testid="button-add-party-type"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        {createPartyTypeMutation.isPending ? 'Adding...' : 'Add Type'}
+                      </Button>
+                    </div>
+
+                    {/* List of party types */}
+                    <div className="border rounded-lg divide-y">
+                      {partyTypes && partyTypes.length > 0 ? (
+                        partyTypes.map((type) => (
+                          <div
+                            key={type.id}
+                            className="flex items-center justify-between p-4"
+                          >
+                            <div>
+                              <span className="font-medium">{type.label}</span>
+                              {type.isDefault && (
+                                <span className="ml-2 text-xs bg-muted px-2 py-1 rounded">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                            {!type.isDefault && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setDeletePartyTypeId(type.id)}
+                                className="text-destructive hover:text-destructive"
+                                data-testid={`button-delete-party-type-${type.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-muted-foreground">
+                          No party types configured. Add one above.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="position-types" className="pt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Briefcase className="w-5 h-5 mr-2" />
+                  Position Types
+                </CardTitle>
+                <CardDescription>
+                  Manage the position types available when adding parties to cases. Default types cannot be deleted.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingPositionTypes ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Add new position type */}
+                    <div className="flex gap-4">
+                      <Input
+                        placeholder="Enter new position type (e.g., Contractor)"
+                        value={newPositionTypeLabel}
+                        onChange={(e) => setNewPositionTypeLabel(e.target.value)}
+                        className="flex-1"
+                        data-testid="input-new-position-type"
+                      />
+                      <Button
+                        onClick={() => {
+                          if (newPositionTypeLabel.trim()) {
+                            createPositionTypeMutation.mutate({
+                              value: newPositionTypeLabel.trim(),
+                              label: newPositionTypeLabel.trim(),
+                            });
+                          }
+                        }}
+                        disabled={!newPositionTypeLabel.trim() || createPositionTypeMutation.isPending}
+                        data-testid="button-add-position-type"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        {createPositionTypeMutation.isPending ? 'Adding...' : 'Add Type'}
+                      </Button>
+                    </div>
+
+                    {/* List of position types */}
+                    <div className="border rounded-lg divide-y">
+                      {positionTypes && positionTypes.length > 0 ? (
+                        positionTypes.map((type) => (
+                          <div
+                            key={type.id}
+                            className="flex items-center justify-between p-4"
+                          >
+                            <div>
+                              <span className="font-medium">{type.label}</span>
+                              {type.isDefault && (
+                                <span className="ml-2 text-xs bg-muted px-2 py-1 rounded">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                            {!type.isDefault && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setDeletePositionTypeId(type.id)}
+                                className="text-destructive hover:text-destructive"
+                                data-testid={`button-delete-position-type-${type.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-muted-foreground">
+                          No position types configured. Add one above.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
+
+      {/* Delete Position Type Confirmation Dialog */}
+      <AlertDialog open={!!deletePositionTypeId} onOpenChange={() => setDeletePositionTypeId(null)}>
+        <AlertDialogContent data-testid="dialog-delete-position-type">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Position Type</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this position type? Existing parties with this position will not be affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-position-type">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletePositionTypeId && deletePositionTypeMutation.mutate(deletePositionTypeId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-position-type"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Party Type Confirmation Dialog */}
+      <AlertDialog open={!!deletePartyTypeId} onOpenChange={() => setDeletePartyTypeId(null)}>
+        <AlertDialogContent data-testid="dialog-delete-party-type">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Party Type</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this party type? Existing parties with this type will not be affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-party-type">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletePartyTypeId && deletePartyTypeMutation.mutate(deletePartyTypeId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-party-type"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteTemplateId} onOpenChange={() => setDeleteTemplateId(null)}>

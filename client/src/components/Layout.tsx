@@ -23,10 +23,7 @@ export default function Layout({ children }: LayoutProps) {
   const navItems = [
     { href: "/", icon: "fas fa-th-large", label: "Dashboard" },
     { href: "/cases", icon: "fas fa-folder-open", label: "All Cases" },
-    { href: "/documents", icon: "fas fa-file-alt", label: "Documents" },
-    { href: "/ai-assistant", icon: "fas fa-robot", label: "AI Assistant" },
     { href: "/calendar", icon: "fas fa-calendar-alt", label: "Calendar" },
-    { href: "/communications", icon: "fas fa-envelope", label: "Communications" },
   ];
 
   return (

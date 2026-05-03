@@ -98,18 +98,19 @@ export class ZoomService {
       type: 2, // Scheduled meeting
       start_time: settings.startTime.toISOString(),
       duration: settings.duration,
-      timezone: settings.timezone || 'Australia/Sydney',
+      timezone: settings.timezone || 'Australia/Sydney', // GMT+11 - Canberra, Sydney, Melbourne
+      password: '', // No security passcode
       settings: {
         host_video: true,
         participant_video: true,
         join_before_host: true,
         mute_upon_entry: false,
         watermark: false,
-        use_pmi: false,
-        approval_type: 0, // Automatically approve
-        audio: 'both',
-        auto_recording: 'none',
-        waiting_room: true, // Enable waiting room by default
+        use_pmi: false, // Generate Meeting ID automatically (not Personal Meeting ID)
+        approval_type: 0, // No registration required - automatically approve
+        audio: 'voip', // Computer Audio only (no telephony)
+        auto_recording: 'none', // No automatic recording
+        waiting_room: true, // Waiting room enabled
       },
     };
 

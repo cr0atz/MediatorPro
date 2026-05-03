@@ -173,6 +173,40 @@ export const communications = pgTable("communications", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const caseEvents = pgTable("case_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  caseId: varchar("case_id").notNull().references(() => cases.id, { onDelete: "cascade" }),
+  eventType: varchar("event_type", { length: 50 }).notNull(), // Court Listings, Conciliation Conference, Mention, Hearing, Trial, Zoom Meeting, Phone Call
+  eventTitle: text("event_title"),
+  eventDate: timestamp("event_date").notNull(),
+  location: text("location"),
+  notes: text("notes"),
+  isActive: boolean("is_active").default(false), // Mark the current active event
+  calendarEventId: text("calendar_event_id"), // Google Calendar event ID for syncing
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const partyTypes = pgTable("party_types", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  value: text("value").notNull(), // Internal value (e.g., "applicant", "director")
+  label: text("label").notNull(), // Display label (e.g., "Applicant", "Director")
+  isDefault: boolean("is_default").default(false), // Default types can't be deleted
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const positionTypes = pgTable("position_types", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  value: text("value").notNull(), // Internal value (e.g., "lawyer", "tenant")
+  label: text("label").notNull(), // Display label (e.g., "Lawyer", "Tenant")
+  isDefault: boolean("is_default").default(false), // Default types can't be deleted
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const casesRelations = relations(cases, ({ many, one }) => ({
   parties: many(parties),
@@ -180,6 +214,7 @@ export const casesRelations = relations(cases, ({ many, one }) => ({
   caseNotes: many(caseNotes),
   aiAnalyses: many(aiAnalyses),
   communications: many(communications),
+  caseEvents: many(caseEvents),
   mediator: one(users, {
     fields: [cases.mediatorId],
     references: [users.id],
@@ -234,6 +269,13 @@ export const communicationsRelations = relations(communications, ({ one }) => ({
   user: one(users, {
     fields: [communications.userId],
     references: [users.id],
+  }),
+}));
+
+export const caseEventsRelations = relations(caseEvents, ({ one }) => ({
+  case: one(cases, {
+    fields: [caseEvents.caseId],
+    references: [cases.id],
   }),
 }));
 
@@ -301,6 +343,22 @@ export const insertCommunicationSchema = createInsertSchema(communications).omit
   createdAt: true,
 });
 
+export const insertCaseEventSchema = createInsertSchema(caseEvents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPartyTypeSchema = createInsertSchema(partyTypes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPositionTypeSchema = createInsertSchema(positionTypes).omit({
+  id: true,
+  createdAt: true,
+});
+
 // User profile update schema (for updating mediator email)
 export const updateUserProfileSchema = z.object({
   mediatorEmail: z.string().email().nullable().optional()
@@ -319,7 +377,13 @@ export type SmtpSettings = typeof smtpSettings.$inferSelect;
 export type ZoomSettings = typeof zoomSettings.$inferSelect;
 export type CalendarSettings = typeof calendarSettings.$inferSelect;
 export type Communication = typeof communications.$inferSelect;
+export type CaseEvent = typeof caseEvents.$inferSelect;
+export type PartyType = typeof partyTypes.$inferSelect;
+export type PositionType = typeof positionTypes.$inferSelect;
 export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
+export type InsertCaseEvent = z.infer<typeof insertCaseEventSchema>;
+export type InsertPartyType = z.infer<typeof insertPartyTypeSchema>;
+export type InsertPositionType = z.infer<typeof insertPositionTypeSchema>;
 export type InsertCase = z.infer<typeof insertCaseSchema>;
 export type InsertParty = z.infer<typeof insertPartySchema>;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;

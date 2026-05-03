@@ -48,8 +48,8 @@ export class GoogleCalendarOAuthService {
       access_type: 'offline',
       scope: [
         'https://www.googleapis.com/auth/calendar',
-        'https://www.googleapis.com/auth/gmail.send',
-        'https://www.googleapis.com/auth/gmail.compose',
+        'https://mail.google.com/', // Full Gmail access (required for Gmail API to work)
+        'https://www.googleapis.com/auth/userinfo.email', // Required to read user's email address
       ],
       state,
       prompt: 'consent', // Force consent to get refresh token
